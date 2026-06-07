@@ -5,8 +5,9 @@ import VehicleDetail from './components/VehicleDetail';
 import DriverRoute from './components/DriverRoute';
 import DriverPanel from './components/DriverPanel';
 import AlertsMaintenance from './components/AlertsMaintenance';
+import DriversManagement from './components/DriversManagement';
 
-function Login({ onLogin }) {
+function Login({ onLogin, drivers }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,18 +19,23 @@ function Login({ onLogin }) {
       return;
     }
     
-    // Hardcoded users
+    // Dynamic authentication
     if (username.toLowerCase() === 'gerente' && password === 'gerente123') {
       onLogin({ username: 'gerente', name: 'Gerente de Flota', role: 'operador', avatar: null });
-    } else if (username.toLowerCase() === 'chofer' && password === 'chofer123') {
-      onLogin({ 
-        username: 'chofer', 
-        name: 'Carlos Mendoza', 
-        role: 'conductor', 
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150' 
-      });
     } else {
-      setError('Usuario o contraseña incorrectos.');
+      const matchedDriver = drivers.find(
+        d => d.username.toLowerCase() === username.trim().toLowerCase() && d.password === password
+      );
+      if (matchedDriver) {
+        onLogin({
+          username: matchedDriver.username,
+          name: matchedDriver.name,
+          role: matchedDriver.role,
+          avatar: matchedDriver.avatar
+        });
+      } else {
+        setError('Usuario o contraseña incorrectos.');
+      }
     }
   };
 
@@ -130,10 +136,41 @@ function Login({ onLogin }) {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null); // { username, name, role, avatar }
   const [role, setRole] = useState('operador'); // 'operador' or 'conductor'
-  const [view, setView] = useState('dashboard'); // 'dashboard', 'flota', 'detalle_vehiculo', 'rutas', 'alertas'
+  const [view, setView] = useState('dashboard'); // 'dashboard', 'flota', 'detalle_vehiculo', 'rutas', 'alertas', 'choferes'
   const [selectedVehicleId, setSelectedVehicleId] = useState('VM-042');
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
+
+  // Dynamic drivers state
+  const [drivers, setDrivers] = useState([
+    { 
+      id: 1, 
+      username: 'chofer', 
+      name: 'Carlos Mendoza', 
+      password: 'chofer123',
+      role: 'conductor', 
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
+      licenseStatus: 'Renovación Requerida' 
+    },
+    { 
+      id: 2, 
+      username: 'ana', 
+      name: 'Ana Silva', 
+      password: 'ana123',
+      role: 'conductor', 
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
+      licenseStatus: 'Vigente' 
+    },
+    { 
+      id: 3, 
+      username: 'luis', 
+      name: 'Luis García', 
+      password: 'luis123',
+      role: 'conductor', 
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
+      licenseStatus: 'Vigente' 
+    }
+  ]);
 
   // Initial mock vehicles data
   const vehicles = [
@@ -202,6 +239,8 @@ export default function App() {
           return <FleetList vehicles={vehicles} setView={setView} setSelectedVehicleId={setSelectedVehicleId} />;
         case 'detalle_vehiculo':
           return <VehicleDetail vehicleId={selectedVehicleId} vehicles={vehicles} setView={setView} />;
+        case 'choferes':
+          return <DriversManagement drivers={drivers} setDrivers={setDrivers} />;
         case 'alertas':
           return <AlertsMaintenance />;
         default:
@@ -227,7 +266,7 @@ export default function App() {
     return (
       <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md relative max-w-md mx-auto shadow-2xl border-x border-surface-variant/20 select-none">
         <main className="flex-1 px-margin-mobile flex flex-col justify-center">
-          <Login onLogin={handleLogin} />
+          <Login onLogin={handleLogin} drivers={drivers} />
         </main>
       </div>
     );
@@ -337,6 +376,16 @@ export default function App() {
             >
               <span className="material-symbols-outlined" style={{ fontVariationSettings: (view === 'flota' || view === 'detalle_vehiculo') ? "'FILL' 1" : "'FILL' 0" }}>local_shipping</span>
               <span className="font-label-md text-[10px] mt-1">Flota</span>
+            </button>
+
+            <button 
+              onClick={() => setView('choferes')}
+              className={`flex flex-col items-center justify-center px-4 py-1 transition-all duration-200 focus:outline-none ${
+                view === 'choferes' ? 'bg-primary-container text-on-primary-container rounded-full' : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: view === 'choferes' ? "'FILL' 1" : "'FILL' 0" }}>badge</span>
+              <span className="font-label-md text-[10px] mt-1">Choferes</span>
             </button>
 
             <button 
