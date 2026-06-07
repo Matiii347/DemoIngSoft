@@ -1,0 +1,55 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-body-md antialiased;
+    background-color: #031427;
+    color: #d3e4fe;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Custom scrollbar to blend with dark mode */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #26364a;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* Timeline styling */
+  .timeline-line {
+    position: absolute;
+    top: 24px;
+    bottom: -24px;
+    left: 19px;
+    width: 2px;
+    background-color: #3e4a3d; /* outline-variant */
+    z-index: 0;
+  }
+  
+  .timeline-item:last-child .timeline-line {
+    display: none;
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  
+  .material-symbols-outlined.filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+/* Custom radial gradient for background glows */
+.bg-gradient-radial {
+  background: radial-gradient(circle, rgba(22, 163, 74, 0.15) 0%, rgba(3, 20, 39, 0) 70%);
+}
