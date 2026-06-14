@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
@@ -20,12 +21,38 @@ const pool = new pg.Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// Test connection
-pool.connect((err, client, release) => {
+// Test connection and auto-initialize database
+pool.connect(async (err, client, release) => {
   if (err) {
     console.error('Error connecting to database:', err.stack);
-  } else {
-    console.log('Successfully connected to database');
+    return;
+  }
+  console.log('Successfully connected to database');
+  
+  try {
+    // Check if 'users' table exists
+    const checkTableQuery = `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
+    `;
+    const res = await client.query(checkTableQuery);
+    const tableExists = res.rows[0].exists;
+    
+    if (!tableExists) {
+      console.log('Database tables not found. Initializing database with init.sql...');
+      const sqlPath = path.join(__dirname, 'db', 'init.sql');
+      const sqlContent = fs.readFileSync(sqlPath, 'utf8');
+      await client.query(sqlContent);
+      console.log('Database successfully initialized with schema and seed data!');
+    } else {
+      console.log('Database tables already exist. Skipping auto-initialization.');
+    }
+  } catch (initErr) {
+    console.error('Error during database initialization:', initErr);
+  } finally {
     release();
   }
 });
