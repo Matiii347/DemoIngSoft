@@ -4,7 +4,7 @@ test.describe('VerdeMov E2E Test Suite', () => {
 
   test.beforeEach(async ({ page }) => {
     // Navigate to the local server
-    await page.goto('http://localhost:8000/react.html');
+    await page.goto('http://localhost:8000/');
   });
 
   test('Operador: Navegación, Búsqueda y Detalles', async ({ page }) => {
