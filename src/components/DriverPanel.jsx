@@ -24,7 +24,7 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
         <div className="relative w-48 h-48 flex items-center justify-center">
           {/* Circular Progress Background */}
           <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" fill="none" r="45" stroke="#1b2b3f" strokeLinecap="round" strokeWidth="8"></circle>
+            <circle cx="50" cy="50" fill="none" r="45" stroke="#213243" strokeLinecap="round" strokeWidth="8"></circle>
             {/* Dynamic Progress Circle */}
             <circle 
               className="transition-all duration-1000 ease-out" 
@@ -32,7 +32,7 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
               cy="50" 
               fill="none" 
               r="45" 
-              stroke={vehicle.status === 'Crítico' ? '#ffb4ab' : '#16A34A'} 
+              stroke={vehicle.status === 'Crítico' ? '#DC2626' : '#16A34A'} 
               strokeDasharray={perimeter} 
               strokeDashoffset={strokeDashoffset} 
               strokeLinecap="round" 
@@ -62,9 +62,9 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
         <h2 className="font-headline-sm text-headline-sm-mobile text-on-surface mb-xs font-bold">Alertas de Documentación</h2>
         
         {/* Warning Card: VTV */}
-        <div className="bg-[#1b2b3f] rounded-xl p-md border-l-4 border-[#F59E0B] flex items-start gap-md border border-transparent hover:border-surface-variant/30 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-[#3e2400] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[#F59E0B]" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+        <div className="bg-surface-container-high rounded-xl p-md border-l-4 border-tertiary flex items-start gap-md border border-transparent hover:border-surface-variant/30 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-tertiary" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
           </div>
           <div className="flex-1">
             <h3 className="font-headline-sm text-headline-sm-mobile text-on-background mb-1 font-bold">VTV Próxima a Vencer</h3>
@@ -79,9 +79,9 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
         </div>
 
         {/* Warning Card: Licencia */}
-        <div className="bg-[#1b2b3f] rounded-xl p-md border-l-4 border-[#ffb4ab] flex items-start gap-md opacity-90 border border-transparent hover:border-surface-variant/30 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-[#93000a] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[#ffb4ab]" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>
+        <div className="bg-surface-container-high rounded-xl p-md border-l-4 border-error flex items-start gap-md opacity-90 border border-transparent hover:border-surface-variant/30 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-error/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-error" style={{ fontVariationSettings: "'FILL' 1" }}>error</span>
           </div>
           <div className="flex-1">
             <h3 className="font-headline-sm text-headline-sm-mobile text-on-background mb-1 font-bold">Licencia Nacional</h3>
@@ -89,7 +89,7 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
           </div>
           <button 
             onClick={() => setView('alertas')}
-            className="text-[#ffb4ab] font-label-md text-label-md px-3 py-1 rounded-full bg-surface-variant hover:bg-surface-bright transition-colors shrink-0 focus:outline-none"
+            className="text-error font-label-md text-label-md px-3 py-1 rounded-full bg-surface-variant hover:bg-surface-bright transition-colors shrink-0 focus:outline-none"
           >
             Ver
           </button>

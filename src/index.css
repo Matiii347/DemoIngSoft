@@ -5,8 +5,8 @@
 @layer base {
   body {
     @apply bg-background text-on-background font-body-md antialiased;
-    background-color: #031427;
-    color: #d3e4fe;
+    background-color: #0F1E2E;
+    color: #FFFFFF;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -19,7 +19,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #26364a;
+    background: #2c3e52;
     border-radius: 4px;
   }
 }
@@ -32,7 +32,7 @@
     bottom: -24px;
     left: 19px;
     width: 2px;
-    background-color: #3e4a3d; /* outline-variant */
+    background-color: #2c3e52; /* outline-variant */
     z-index: 0;
   }
   

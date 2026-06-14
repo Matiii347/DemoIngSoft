@@ -8,53 +8,45 @@ export default {
   theme: {
     extend: {
       colors: {
-        "primary-fixed": "#7ffc97",
-        "surface-container-lowest": "#000f21",
-        "on-tertiary-container": "#3e2400",
-        "error": "#ffb4ab",
-        "on-primary-container": "#003111",
-        "error-container": "#93000a",
-        "on-tertiary": "#472a00",
-        "on-error": "#690005",
-        "outline": "#879485",
-        "on-surface": "#d3e4fe",
-        "surface-variant": "#26364a",
-        "outline-variant": "#3e4a3d",
-        "tertiary": "#ffb95f",
-        "surface-container-low": "#0b1c30",
-        "surface-container": "#102034",
-        "tertiary-fixed": "#ffddb8",
-        "on-secondary-fixed": "#0d1c2c",
-        "tertiary-container": "#ca8100",
-        "surface-dim": "#031427",
-        "secondary": "#b9c8dd",
-        "secondary-fixed-dim": "#b9c8dd",
-        "on-tertiary-fixed": "#2a1700",
-        "on-secondary": "#233142",
-        "on-tertiary-fixed-variant": "#653e00",
-        "inverse-on-surface": "#213145",
-        "on-primary-fixed-variant": "#005320",
-        "primary-fixed-dim": "#62df7d",
-        "surface": "#031427",
-        "on-error-container": "#ffdad6",
-        "on-primary-fixed": "#002109",
-        "on-surface-variant": "#bdcaba",
-        "surface-container-high": "#1b2b3f",
-        "surface-container-highest": "#26364a",
-        "on-background": "#d3e4fe",
-        "secondary-container": "#3a485a",
-        "inverse-surface": "#d3e4fe",
-        "on-secondary-container": "#a7b6cb",
-        "inverse-primary": "#006e2d",
-        "surface-bright": "#2a3a4f",
-        "on-secondary-fixed-variant": "#3a485a",
-        "primary": "#62df7d",
-        "surface-tint": "#62df7d",
-        "background": "#031427",
-        "on-primary": "#003914",
-        "tertiary-fixed-dim": "#ffb95f",
-        "primary-container": "#1ca64d",
-        "secondary-fixed": "#d5e4fa"
+        // Brand Identity colors from PDF Manual
+        "primary": "#16A34A",         // Verde Movilidad (Primary Actions)
+        "background": "#0F1E2E",      // Azul Marino Profundo (Main background)
+        "surface": "#0F1E2E",         // Azul Marino Profundo
+        "surface-container": "#182635",      // Lighter navy for cards
+        "surface-container-low": "#11202f",  // Darker navy
+        "surface-container-high": "#213243", // Lighter navy
+        "surface-container-highest": "#2c3e52",
+        "on-background": "#FFFFFF",
+        "on-surface": "#FFFFFF",
+        "on-surface-variant": "#64748B", // Gris Acero
+        "surface-variant": "#203246",
+        
+        "tertiary": "#F59E0B",        // Ámbar Energía (Warnings/Maintenance)
+        "secondary": "#64748B",       // Gris Acero
+        "primary-container": "#16A34A",
+        "on-primary-container": "#FFFFFF",
+        "on-primary": "#FFFFFF",
+        
+        "outline": "#64748B",
+        "outline-variant": "#2c3e52",
+        
+        // Semantic states
+        "error": "#DC2626",           // Semantic Red
+        "info": "#0EA5E9",            // Semantic Blue
+        "success": "#16A34A",         // Semantic Green
+        
+        // Material Design backward compatibility tags (to prevent breaking other elements)
+        "primary-fixed": "#16A34A",
+        "surface-container-lowest": "#0b141f",
+        "on-tertiary-container": "#0F1E2E",
+        "error-container": "#DC2626",
+        "on-error": "#FFFFFF",
+        "on-tertiary": "#FFFFFF",
+        "tertiary-container": "#F59E0B",
+        "surface-dim": "#0a1520",
+        "surface-bright": "#1d2d3e",
+        "secondary-container": "#203246",
+        "on-secondary-container": "#FFFFFF"
       },
       borderRadius: {
         "DEFAULT": "0.25rem",

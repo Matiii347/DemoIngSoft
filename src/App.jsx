@@ -11,31 +11,39 @@ function Login({ onLogin, drivers }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) {
       setError('Por favor, completa todos los campos.');
       return;
     }
     
-    // Dynamic authentication
-    if (username.toLowerCase() === 'gerente' && password === 'gerente123') {
-      onLogin({ username: 'gerente', name: 'Gerente de Flota', role: 'operador', avatar: null });
-    } else {
-      const matchedDriver = drivers.find(
-        d => d.username.toLowerCase() === username.trim().toLowerCase() && d.password === password
-      );
-      if (matchedDriver) {
-        onLogin({
-          username: matchedDriver.username,
-          name: matchedDriver.name,
-          role: matchedDriver.role,
-          avatar: matchedDriver.avatar
-        });
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        onLogin(data.user);
       } else {
-        setError('Usuario o contraseña incorrectos.');
+        setError(data.error || 'Usuario o contraseña incorrectos.');
       }
+    } catch (err) {
+      console.error('Error logging in:', err);
+      setError('Error de conexión con el servidor. Inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,10 +101,13 @@ function Login({ onLogin, drivers }) {
 
           <button 
             type="submit"
-            className="w-full bg-primary hover:bg-primary/95 text-surface font-label-md text-label-md font-bold py-3.5 rounded-xl mt-sm flex items-center justify-center gap-xs shadow-lg shadow-green-950/20 active:scale-[0.98] transition-all"
+            disabled={loading}
+            className={`w-full bg-primary hover:bg-primary/95 text-surface font-label-md text-label-md font-bold py-3.5 rounded-xl mt-sm flex items-center justify-center gap-xs shadow-lg shadow-green-950/20 active:scale-[0.98] transition-all ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            <span className="material-symbols-outlined text-[20px]">login</span>
-            Iniciar Sesión
+            <span className={`material-symbols-outlined text-[20px] ${loading ? 'animate-spin' : ''}`}>
+              {loading ? 'sync' : 'login'}
+            </span>
+            {loading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
           </button>
         </form>
 

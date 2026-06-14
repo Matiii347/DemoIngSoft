@@ -155,7 +155,7 @@ export default function DriverRoute() {
           className={`${
             navigating 
               ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-900/30' 
-              : 'bg-[#16A34A] hover:bg-[#15803d] shadow-green-950/30'
+              : 'bg-primary hover:bg-primary/90 shadow-green-950/30'
           } text-white font-label-md text-label-md rounded-full px-6 py-4 flex items-center gap-sm shadow-lg hover:scale-105 transition-all active:scale-95 focus:outline-none`}
         >
           <span className="material-symbols-outlined animate-pulse">navigation</span>
