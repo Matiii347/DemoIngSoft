@@ -107,34 +107,32 @@ pool.connect(async (err, client, release) => {
         console.error('Error migrating vehicles table (kilometers):', kmErr);
       }
 
-      // 6. Update role constraint on users table to include 'taller' and 'administrativo'
+      // 6. Clean up roles and update check constraint to only support 'operador' and 'conductor'
       try {
+        // First delete users that are not 'operador' or 'conductor', or operators that are not 'gerente'
+        await client.query(`
+          DELETE FROM users 
+          WHERE role NOT IN ('operador', 'conductor') 
+             OR (role = 'operador' AND username != 'gerente');
+        `);
+        
         await client.query(`
           ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-          ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('operador', 'conductor', 'taller', 'administrativo'));
+          ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('operador', 'conductor'));
         `);
-        console.log('Successfully updated users_role_check constraint to include taller and administrativo.');
+        console.log('Successfully cleaned up non-conforming users and enforced role check constraint (operador, conductor).');
       } catch (roleErr) {
         console.error('Error updating role check constraint:', roleErr);
       }
 
-      // 7. Bulk seed users if total < 20 (means we only have the initial 4 demo users)
+      // 7. Bulk seed users if total drivers < 80
       try {
-        const userCount = await client.query('SELECT COUNT(*) FROM users');
-        const count = parseInt(userCount.rows[0].count, 10);
-        if (count < 20) {
-          console.log(`Only ${count} users found. Seeding all 120 users...`);
+        const driverCountRes = await client.query("SELECT COUNT(*) FROM users WHERE role = 'conductor'");
+        const count = parseInt(driverCountRes.rows[0].count, 10);
+        if (count < 80) {
+          console.log(`Only ${count} drivers found. Seeding up to 80 drivers...`);
           await client.query(`
             INSERT INTO users (username, password, name, role, avatar, license_status) VALUES
-            ('op_rodriguez','op123','Rodrigo Rodríguez','operador',NULL,'Vigente'),
-            ('op_fernandez','op123','Marcela Fernández','operador',NULL,'Vigente'),
-            ('op_suarez','op123','Esteban Suárez','operador',NULL,'Vigente'),
-            ('op_luna','op123','Patricia Luna','operador',NULL,'Vigente'),
-            ('op_torres','op123','Gustavo Torres','operador',NULL,'Vigente'),
-            ('op_vega','op123','Sandra Vega','operador',NULL,'Vigente'),
-            ('op_molina','op123','Diego Molina','operador',NULL,'Vigente'),
-            ('op_reyes','op123','Valeria Reyes','operador',NULL,'Vigente'),
-            ('op_peralta','op123','Nicolás Peralta','operador',NULL,'Vigente'),
             ('ch_martinez','ch123','Roberto Martínez','conductor',NULL,'Vigente'),
             ('ch_lopez','ch123','María López','conductor',NULL,'Vigente'),
             ('ch_gonzalez','ch123','Pedro González','conductor',NULL,'Vigente'),
@@ -210,39 +208,11 @@ pool.connect(async (err, client, release) => {
             ('ch_zapata','ch123','Lorenza Zapata','conductor',NULL,'Vigente'),
             ('ch_cano','ch123','Leandro Cano','conductor',NULL,'Vigente'),
             ('ch_rendon','ch123','Amanda Rendón','conductor',NULL,'Vigente'),
-            ('taller_jefe','taller123','Jorge Villanueva','taller',NULL,'Vigente'),
-            ('taller_sub','taller123','Raúl Esquivel','taller',NULL,'Vigente'),
-            ('taller_mec1','taller123','Fernando Ríos','taller',NULL,'Vigente'),
-            ('taller_mec2','taller123','Leonardo Bustos','taller',NULL,'Vigente'),
-            ('taller_mec3','taller123','Alfredo Soria','taller',NULL,'Vigente'),
-            ('taller_mec4','taller123','Ramón Orozco','taller',NULL,'Vigente'),
-            ('taller_mec5','taller123','Ignacio Palacios','taller',NULL,'Vigente'),
-            ('taller_mec6','taller123','Tomás Leiva','taller',NULL,'Vigente'),
-            ('taller_mec7','taller123','Enrique Quiroga','taller',NULL,'Vigente'),
-            ('taller_mec8','taller123','Horacio Medrano','taller',NULL,'Vigente'),
-            ('taller_elec1','taller123','Sebastián Correia','taller',NULL,'Vigente'),
-            ('taller_elec2','taller123','Felipe Barrionuevo','taller',NULL,'Vigente'),
-            ('taller_elec3','taller123','Valentín Gómez','taller',NULL,'Vigente'),
-            ('taller_neu1','taller123','Alberto Pacheco','taller',NULL,'Vigente'),
-            ('taller_neu2','taller123','Luciano Vidal','taller',NULL,'Vigente'),
-            ('taller_neu3','taller123','Edgardo Cuevas','taller',NULL,'Vigente'),
-            ('taller_lav1','taller123','Nicolás Heredia','taller',NULL,'Vigente'),
-            ('taller_lav2','taller123','Erika Molano','taller',NULL,'Vigente'),
-            ('taller_coord1','taller123','Patricia Serpa','taller',NULL,'Vigente'),
-            ('taller_coord2','taller123','Mario Quintero','taller',NULL,'Vigente'),
-            ('admin_rrhh','admin123','Susana Delgado','administrativo',NULL,'Vigente'),
-            ('admin_contab','admin123','Marcelo Prieto','administrativo',NULL,'Vigente'),
-            ('admin_factura','admin123','Valeria Ojeda','administrativo',NULL,'Vigente'),
-            ('admin_compras','admin123','Daniel Estrada','administrativo',NULL,'Vigente'),
-            ('admin_legales','admin123','Cecilia Funes','administrativo',NULL,'Vigente'),
-            ('admin_tesor','admin123','Gustavo Núñez','administrativo',NULL,'Vigente'),
-            ('admin_seg','admin123','Estela Carrizo','administrativo',NULL,'Vigente'),
-            ('admin_it','admin123','Rodrigo Páez','administrativo',NULL,'Vigente'),
-            ('admin_gerencia','admin123','Mirna Olivares','administrativo',NULL,'Vigente'),
-            ('admin_soporte','admin123','Bruno Salinas','administrativo',NULL,'Vigente')
+            ('ch_pacheco','ch123','Humberto Pacheco','conductor',NULL,'Vigente'),
+            ('ch_vidal','ch123','Guillermo Vidal','conductor',NULL,'Vigente')
             ON CONFLICT (username) DO NOTHING;
           `);
-          console.log('Bulk seed of 120 users completed.');
+          console.log('Bulk seed of 80 drivers completed.');
         }
       } catch (seedErr) {
         console.error('Error during bulk user seed:', seedErr);
@@ -382,7 +352,7 @@ app.get('/api/users', async (req, res) => {
 // POST /api/users — crea cualquier tipo de usuario
 app.post('/api/users', async (req, res) => {
   const { name, username, password, role, licenseStatus, avatar } = req.body;
-  const validRoles = ['operador', 'conductor', 'taller', 'administrativo'];
+  const validRoles = ['operador', 'conductor'];
   if (!validRoles.includes(role)) {
     return res.status(400).json({ success: false, error: 'Rol no válido.' });
   }
@@ -405,7 +375,7 @@ app.post('/api/users', async (req, res) => {
 app.put('/api/users/:id', async (req, res) => {
   const { id } = req.params;
   const { name, username, password, role, licenseStatus, avatar } = req.body;
-  const validRoles = ['operador', 'conductor', 'taller', 'administrativo'];
+  const validRoles = ['operador', 'conductor'];
   if (role && !validRoles.includes(role)) {
     return res.status(400).json({ success: false, error: 'Rol no válido.' });
   }
