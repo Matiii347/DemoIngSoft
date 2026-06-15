@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Dashboard({ setView, alerts, vehicles, setSelectedVehicleId }) {
+export default function Dashboard({ setView, alerts = [], vehicles = [], setSelectedVehicleId }) {
   // Calculate dynamic KPIs
   const totalVehicles = vehicles.length;
   const activeVehicles = vehicles.filter(v => v.status !== 'Crítico').length;

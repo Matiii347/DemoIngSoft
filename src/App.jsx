@@ -258,7 +258,7 @@ export default function App() {
     if (role === 'operador') {
       switch (view) {
         case 'dashboard':
-          return <Dashboard setView={setView} alerts={alerts} setSelectedVehicleId={setSelectedVehicleId} />;
+          return <Dashboard setView={setView} alerts={alerts} vehicles={vehicles} setSelectedVehicleId={setSelectedVehicleId} />;
         case 'flota':
           return <FleetList vehicles={vehicles} setVehicles={setVehicles} drivers={drivers} setView={setView} setSelectedVehicleId={setSelectedVehicleId} />;
         case 'detalle_vehiculo':
@@ -268,7 +268,7 @@ export default function App() {
         case 'alertas':
           return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:
-          return <Dashboard setView={setView} alerts={alerts} setSelectedVehicleId={setSelectedVehicleId} />;
+          return <Dashboard setView={setView} alerts={alerts} vehicles={vehicles} setSelectedVehicleId={setSelectedVehicleId} />;
       }
     } else {
       // Driver perspective

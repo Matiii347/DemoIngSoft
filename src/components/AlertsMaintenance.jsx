@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function AlertsMaintenance({ settings, setSettings, vehicles }) {
+export default function AlertsMaintenance({ settings = { alert_red: 15, alert_yellow: 30, alert_green: 60 }, setSettings, vehicles = [] }) {
   const [scheduledAlerts, setScheduledAlerts] = useState({});
   const [showConfig, setShowConfig] = useState(false);
   
