@@ -149,6 +149,16 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
       vtvExpiration: vtvExpiration || null
     };
 
+    if (payload.driverId) {
+      const alreadyAssigned = vehicles.find(
+        v => v.driverId === payload.driverId && v.id !== payload.id
+      );
+      if (alreadyAssigned) {
+        setError(`El chofer seleccionado ya está asignado al vehículo ${alreadyAssigned.id}.`);
+        return;
+      }
+    }
+
     try {
       if (editingVehicle) {
         // Edit mode

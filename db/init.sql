@@ -26,7 +26,7 @@ CREATE TABLE vehicles (
     model VARCHAR(100) NOT NULL,
     status VARCHAR(50) NOT NULL CHECK (status IN ('En Ruta', 'Cargando', 'Crítico')),
     battery INTEGER NOT NULL CHECK (battery >= 0 AND battery <= 100),
-    driver_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    driver_id INTEGER UNIQUE REFERENCES users(id) ON DELETE SET NULL,
     cargo_limit NUMERIC(5,2) NOT NULL,
     current_cargo NUMERIC(5,2) NOT NULL,
     range_left INTEGER NOT NULL,
@@ -88,7 +88,7 @@ INSERT INTO users (username, password, name, role, avatar, license_status) VALUE
 
 -- Insert Vehicles (using subqueries to assign driver_id)
 INSERT INTO vehicles (id, model, status, battery, driver_id, cargo_limit, current_cargo, range_left, current_location, vtv_expiration) VALUES
-('VM-042', 'e-Truck Pro 2024', 'En Ruta', 85, (SELECT id FROM users WHERE username = 'chofer'), 4.5, 3.8, 410, 'Av. Insurgentes Sur 1234, Ciudad de México', '2023-10-22'),
+('VM-042', 'e-Truck Pro 2024', 'En Ruta', 85, NULL, 4.5, 3.8, 410, 'Av. Insurgentes Sur 1234, Ciudad de México', '2023-10-22'),
 ('VM-018', 'e-Truck Delivery', 'Cargando', 42, (SELECT id FROM users WHERE username = 'chofer'), 24.0, 18.5, 340, 'Centro de Distribución Norte, Buenos Aires', '2023-12-15'),
 ('VM-099', 'e-Truck Heavy Duty', 'Crítico', 12, (SELECT id FROM users WHERE username = 'ana'), 12.0, 10.8, 45, 'Av. Insurgentes Sur 1234, Ciudad de México', '2024-03-01'),
 ('VM-055', 'e-Truck Pro', 'En Ruta', 92, (SELECT id FROM users WHERE username = 'luis'), 4.5, 3.8, 410, 'Av. Insurgentes Sur 1234, Ciudad de México', '2024-05-10'),

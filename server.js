@@ -48,7 +48,24 @@ pool.connect(async (err, client, release) => {
       await client.query(sqlContent);
       console.log('Database successfully initialized with schema and seed data!');
     } else {
-      console.log('Database tables already exist. Skipping auto-initialization.');
+      console.log('Database tables already exist. Checking for data consistency and constraints...');
+      // 1. Resolve seed duplicates: unassign VM-042 if it's assigned to 'chofer' alongside VM-018
+      await client.query(`
+        UPDATE vehicles 
+        SET driver_id = NULL 
+        WHERE id = 'VM-042' 
+          AND driver_id = (SELECT id FROM users WHERE username = 'chofer');
+      `);
+      
+      // 2. Add UNIQUE constraint to vehicles.driver_id if it doesn't exist
+      try {
+        await client.query(`
+          ALTER TABLE vehicles ADD CONSTRAINT vehicles_driver_id_key UNIQUE (driver_id);
+        `);
+        console.log('Successfully enforced UNIQUE constraint on vehicles.driver_id.');
+      } catch (constraintErr) {
+        // Constraint already exists, which is fine
+      }
     }
 
     // Check if 'system_settings' table exists
@@ -221,6 +238,12 @@ app.get('/api/vehicles', async (req, res) => {
 app.post('/api/vehicles', async (req, res) => {
   const { id, model, status, battery, driverId, cargoLimit, currentCargo, rangeLeft, currentLocation, vtvExpiration } = req.body;
   try {
+    if (driverId) {
+      const duplicateCheck = await pool.query('SELECT id FROM vehicles WHERE driver_id = $1', [driverId]);
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(400).json({ success: false, error: `El chofer seleccionado ya está asignado al vehículo ${duplicateCheck.rows[0].id}.` });
+      }
+    }
     const query = `
       INSERT INTO vehicles (id, model, status, battery, driver_id, cargo_limit, current_cargo, range_left, current_location, vtv_expiration)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -282,6 +305,12 @@ app.put('/api/vehicles/:id', async (req, res) => {
   const { id } = req.params;
   const { model, status, battery, driverId, cargoLimit, currentCargo, rangeLeft, currentLocation, vtvExpiration } = req.body;
   try {
+    if (driverId) {
+      const duplicateCheck = await pool.query('SELECT id FROM vehicles WHERE driver_id = $1 AND id != $2', [driverId, id]);
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(400).json({ success: false, error: `El chofer seleccionado ya está asignado al vehículo ${duplicateCheck.rows[0].id}.` });
+      }
+    }
     const query = `
       UPDATE vehicles 
       SET model = $1, status = $2, battery = $3, driver_id = $4, cargo_limit = $5, current_cargo = $6, range_left = $7, current_location = $8, vtv_expiration = $9
