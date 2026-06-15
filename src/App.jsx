@@ -264,7 +264,7 @@ export default function App() {
         case 'detalle_vehiculo':
           return <VehicleDetail vehicleId={selectedVehicleId} vehicles={vehicles} setView={setView} />;
         case 'choferes':
-          return <DriversManagement drivers={drivers} setDrivers={setDrivers} />;
+          return <DriversManagement drivers={drivers} setDrivers={setDrivers} vehicles={vehicles} />;
         case 'alertas':
           return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:
@@ -277,7 +277,7 @@ export default function App() {
         case 'dashboard':
           return <DriverPanel vehicleId={driverVehicleId} vehicles={vehicles} setView={setView} />;
         case 'rutas':
-          return <DriverRoute />;
+          return <DriverRoute currentUser={currentUser} />;
         case 'alertas':
           return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:

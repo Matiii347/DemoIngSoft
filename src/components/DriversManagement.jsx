@@ -1,9 +1,31 @@
 import React, { useState } from 'react';
 
-export default function DriversManagement({ drivers, setDrivers }) {
+export default function DriversManagement({ drivers, setDrivers, vehicles = [] }) {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null); // null when creating
+  
+  // Expenses and Activity modal states
+  const [viewingExpensesDriver, setViewingExpensesDriver] = useState(null);
+  const [trips, setTrips] = useState([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+
+  const handleOpenExpenses = async (driver) => {
+    setViewingExpensesDriver(driver);
+    setLoadingTrips(true);
+    setTrips([]);
+    try {
+      const res = await fetch(`/api/trips?driverId=${driver.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setTrips(data.trips);
+      }
+    } catch (err) {
+      console.error('Error fetching driver trips:', err);
+    } finally {
+      setLoadingTrips(false);
+    }
+  };
   
   // Form states
   const [name, setName] = useState('');
@@ -204,11 +226,44 @@ export default function DriversManagement({ drivers, setDrivers }) {
                       {driver.licenseStatus || 'Vigente'}
                     </span>
                   </div>
+
+                  {/* Location & Vehicle Assignment */}
+                  {(() => {
+                    const vehicle = vehicles.find(v => v.driverId === driver.id);
+                    if (vehicle) {
+                      return (
+                        <div className="mt-1 flex flex-col gap-0.5">
+                          <div className="flex items-center gap-xs font-body-sm text-[11px] text-primary">
+                            <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                            <span>Manejando <strong>{vehicle.id}</strong> ({vehicle.status})</span>
+                          </div>
+                          <div className="flex items-center gap-xs font-body-sm text-[11px] text-on-surface-variant">
+                            <span className="material-symbols-outlined text-[14px]">location_on</span>
+                            <span className="truncate max-w-[200px]">{vehicle.currentLocation || 'Base Operativa'}</span>
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex items-center gap-xs font-body-sm text-[11px] text-on-surface-variant/60 mt-1">
+                          <span className="material-symbols-outlined text-[14px]">person_off</span>
+                          <span>Sin unidad asignada</span>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
 
               {/* Actions */}
               <div className="flex items-center gap-xs">
+                <button 
+                  onClick={() => handleOpenExpenses(driver)}
+                  className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-secondary hover:text-primary transition-colors focus:outline-none"
+                  title="Ver gastos y viajes"
+                >
+                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                </button>
                 <button 
                   onClick={() => handleOpenEdit(driver)}
                   className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-primary transition-colors focus:outline-none"
@@ -330,6 +385,80 @@ export default function DriversManagement({ drivers, setDrivers }) {
                 Guardar Chofer
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Expenses Modal Overlay */}
+      {viewingExpensesDriver && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end justify-center max-w-md mx-auto">
+          <div className="bg-surface-container-high rounded-t-2xl w-full p-lg border-t border-surface-variant/40 shadow-2xl flex flex-col gap-md max-h-[85vh] overflow-y-auto animate-slideUp">
+            <div className="flex justify-between items-center border-b border-surface-variant/20 pb-sm">
+              <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                Gastos y Viajes de {viewingExpensesDriver.name}
+              </h2>
+              <button 
+                type="button"
+                onClick={() => setViewingExpensesDriver(null)}
+                className="text-on-surface-variant hover:text-on-surface focus:outline-none"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {loadingTrips ? (
+              <div className="flex flex-col items-center justify-center py-10">
+                <span className="material-symbols-outlined text-[36px] text-primary animate-spin mb-sm">sync</span>
+                <p className="text-on-surface-variant font-body-md">Cargando historial...</p>
+              </div>
+            ) : trips.length === 0 ? (
+              <div className="text-center py-10 bg-surface-container rounded-2xl border border-surface-variant/20">
+                <span className="material-symbols-outlined text-[48px] text-on-surface-variant/30 mb-sm">receipt_long</span>
+                <p className="text-on-surface-variant font-body-md">No se registran viajes ni gastos rendidos para este chofer.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-md">
+                {/* Financial Summary card */}
+                <div className="grid grid-cols-2 gap-sm bg-surface-container-low p-sm rounded-xl border border-surface-variant/30">
+                  <div className="flex flex-col items-center p-xs">
+                    <span className="font-label-md text-[10px] text-on-surface-variant uppercase font-semibold">Total Rendido</span>
+                    <span className="font-headline-sm text-secondary font-bold mt-1">
+                      ${trips.reduce((acc, t) => acc + t.expensesAmount, 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center p-xs border-l border-surface-variant/30">
+                    <span className="font-label-md text-[10px] text-on-surface-variant uppercase font-semibold">Total Recorrido</span>
+                    <span className="font-headline-sm text-primary font-bold mt-1">
+                      {trips.reduce((acc, t) => acc + t.totalDistance, 0).toLocaleString('es-AR')} km
+                    </span>
+                  </div>
+                </div>
+
+                {/* List of trips */}
+                <div className="flex flex-col gap-sm">
+                  <h3 className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Desglose de Hojas de Ruta</h3>
+                  <div className="flex flex-col gap-sm max-h-[40vh] overflow-y-auto pr-1">
+                    {trips.map(trip => (
+                      <div key={trip.id} className="bg-surface-container p-sm rounded-xl border border-surface-variant/20 flex flex-col gap-2 hover:bg-surface-bright transition-all">
+                        <div className="flex justify-between items-center">
+                          <span className="font-label-md text-xs text-on-surface-variant font-medium">{trip.tripDate}</span>
+                          <span className="font-label-md text-xs text-primary bg-primary-container/20 px-2 py-0.5 rounded font-bold">{trip.vehicleId}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="font-body-md text-sm text-on-surface font-semibold">{trip.totalDistance} km recorridos</span>
+                          <span className="font-body-md text-sm text-secondary font-bold">${trip.expensesAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {trip.expensesDetail && (
+                          <div className="bg-surface-container-lowest p-xs rounded border border-surface-variant/10 text-xs text-on-surface-variant italic leading-tight">
+                            "{trip.expensesDetail}"
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

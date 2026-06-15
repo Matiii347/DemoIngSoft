@@ -74,6 +74,17 @@ pool.connect(async (err, client, release) => {
       } catch (constraintErr) {
         // Constraint already exists, which is fine
       }
+
+      // 3. Add expenses columns to trips table if they do not exist
+      try {
+        await client.query(`
+          ALTER TABLE trips ADD COLUMN IF NOT EXISTS expenses_amount NUMERIC(10,2) DEFAULT 0.00;
+          ALTER TABLE trips ADD COLUMN IF NOT EXISTS expenses_detail TEXT;
+        `);
+        console.log('Successfully enforced schema migration for trips table (expenses columns).');
+      } catch (tripsErr) {
+        console.error('Error migrating trips table:', tripsErr);
+      }
     }
 
     // Check if 'system_settings' table exists
@@ -455,6 +466,152 @@ app.post('/api/login', async (req, res) => {
   } catch (error) {
     console.error('Login database error:', error);
     res.status(500).json({ success: false, error: 'Error del servidor al iniciar sesión.' });
+  }
+});
+
+// GET /api/trips
+app.get('/api/trips', async (req, res) => {
+  const { driverId } = req.query;
+  try {
+    let query = `
+      SELECT 
+        t.id, 
+        t.driver_id AS "driverId", 
+        t.vehicle_id AS "vehicleId", 
+        TO_CHAR(t.trip_date, 'YYYY-MM-DD') AS "tripDate", 
+        t.status, 
+        t.total_distance AS "totalDistance", 
+        t.estimated_time AS "estimatedTime", 
+        t.total_stops AS "totalStops",
+        t.expenses_amount AS "expensesAmount",
+        t.expenses_detail AS "expensesDetail"
+      FROM trips t
+    `;
+    const params = [];
+    if (driverId) {
+      query += ' WHERE t.driver_id = $1';
+      params.push(parseInt(driverId, 10));
+    }
+    query += ' ORDER BY t.trip_date DESC, t.id DESC';
+    
+    const result = await pool.query(query, params);
+    
+    const trips = result.rows.map(t => ({
+      ...t,
+      expensesAmount: parseFloat(t.expensesAmount || 0),
+      totalDistance: parseFloat(t.totalDistance || 0)
+    }));
+    
+    res.json({ success: true, trips });
+  } catch (error) {
+    console.error('Error fetching trips:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener hojas de ruta.' });
+  }
+});
+
+// GET /api/trips/active
+app.get('/api/trips/active', async (req, res) => {
+  const { driverId } = req.query;
+  if (!driverId) {
+    return res.status(400).json({ success: false, error: 'driverId es requerido.' });
+  }
+  try {
+    const query = `
+      SELECT 
+        t.id, 
+        t.driver_id AS "driverId", 
+        t.vehicle_id AS "vehicleId", 
+        TO_CHAR(t.trip_date, 'YYYY-MM-DD') AS "tripDate", 
+        t.status, 
+        t.total_distance AS "totalDistance", 
+        t.estimated_time AS "estimatedTime", 
+        t.total_stops AS "totalStops"
+      FROM trips t
+      WHERE t.driver_id = $1 AND t.status = 'En Progreso'
+      ORDER BY t.id DESC
+      LIMIT 1
+    `;
+    const result = await pool.query(query, [parseInt(driverId, 10)]);
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: true, activeTrip: null });
+    }
+    
+    const activeTrip = result.rows[0];
+    
+    // Fetch stops
+    const stopsQuery = `
+      SELECT id, stop_order AS "stopOrder", name, stop_type AS "stopType", status, details, distance_to_next AS "distanceToNext"
+      FROM stops
+      WHERE trip_id = $1
+      ORDER BY stop_order ASC
+    `;
+    const stopsResult = await pool.query(stopsQuery, [activeTrip.id]);
+    activeTrip.stops = stopsResult.rows.map(s => ({
+      ...s,
+      distanceToNext: parseFloat(s.distanceToNext || 0)
+    }));
+    
+    // Fetch tasks
+    for (let stop of activeTrip.stops) {
+      const tasksQuery = `
+        SELECT id, description, done
+        FROM stop_tasks
+        WHERE stop_id = $1
+        ORDER BY id ASC
+      `;
+      const tasksResult = await pool.query(tasksQuery, [stop.id]);
+      stop.tasks = tasksResult.rows;
+    }
+    
+    res.json({ success: true, activeTrip });
+  } catch (error) {
+    console.error('Error fetching active trip:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener hoja de ruta activa.' });
+  }
+});
+
+// PUT /api/trips/:id/complete
+app.put('/api/trips/:id/complete', async (req, res) => {
+  const { id } = req.params;
+  const { expensesAmount, expensesDetail, finalKm } = req.body;
+  try {
+    const query = `
+      UPDATE trips 
+      SET status = 'Completado',
+          expenses_amount = $1,
+          expenses_detail = $2,
+          total_distance = COALESCE($3, total_distance)
+      WHERE id = $4
+      RETURNING id
+    `;
+    const result = await pool.query(query, [
+      parseFloat(expensesAmount || 0),
+      expensesDetail || '',
+      finalKm ? parseFloat(finalKm) : null,
+      parseInt(id, 10)
+    ]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Hoja de ruta no encontrada.' });
+    }
+    res.json({ success: true, message: 'Hoja de ruta completada y rendida.' });
+  } catch (error) {
+    console.error('Error completing trip:', error);
+    res.status(500).json({ success: false, error: 'Error al completar la hoja de ruta.' });
+  }
+});
+
+// PUT /api/tasks/:id/toggle
+app.put('/api/tasks/:id/toggle', async (req, res) => {
+  const { id } = req.params;
+  const { done } = req.body;
+  try {
+    await pool.query('UPDATE stop_tasks SET done = $1 WHERE id = $2', [done, parseInt(id, 10)]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling task:', error);
+    res.status(500).json({ success: false, error: 'Error al actualizar tarea.' });
   }
 });
 

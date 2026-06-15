@@ -53,7 +53,9 @@ CREATE TABLE trips (
     status VARCHAR(20) NOT NULL CHECK (status IN ('Planificado', 'En Progreso', 'Completado')),
     total_distance NUMERIC(6,2) NOT NULL,
     estimated_time VARCHAR(20),
-    total_stops INTEGER NOT NULL DEFAULT 0
+    total_stops INTEGER NOT NULL DEFAULT 0,
+    expenses_amount NUMERIC(10,2) DEFAULT 0.00,
+    expenses_detail TEXT
 );
 
 -- 5. Stops Table (Timeline of a trip)
@@ -101,10 +103,10 @@ INSERT INTO alerts (vehicle_id, title, description, severity, status) VALUES
 ('VM-105', 'Revisión de Neumáticos', 'Presión baja detectada. El torque de salida eléctrico requiere un desgaste uniforme en neumáticos reforzados.', 'info', 'Activa');
 
 -- Insert Historical / Completed Trips for Carlos Mendoza (chofer)
-INSERT INTO trips (driver_id, vehicle_id, trip_date, status, total_distance, estimated_time, total_stops) VALUES
-((SELECT id FROM users WHERE username = 'chofer'), 'VM-018', '2023-10-20', 'Completado', 45.0, '1h 10m', 2),
-((SELECT id FROM users WHERE username = 'chofer'), 'VM-018', '2023-10-22', 'Completado', 68.0, '2h 00m', 2),
-((SELECT id FROM users WHERE username = 'chofer'), 'VM-018', '2023-10-24', 'Completado', 45.0, '1h 15m', 2);
+INSERT INTO trips (driver_id, vehicle_id, trip_date, status, total_distance, estimated_time, total_stops, expenses_amount, expenses_detail) VALUES
+((SELECT id FROM users WHERE username = 'chofer'), 'VM-018', '2023-10-20', 'Completado', 45.0, '1h 10m', 2, 4500.00, 'Peajes Autopista y Almuerzo'),
+((SELECT id FROM users WHERE username = 'chofer'), 'VM-018', '2023-10-22', 'Completado', 68.0, '2h 00m', 2, 8200.00, 'Peajes y Recarga de Batería en YPF'),
+((SELECT id FROM users WHERE username = 'chofer'), 'VM-018', '2023-10-24', 'Completado', 45.0, '1h 15m', 2, 3200.00, 'Peajes e insumos menores');
 
 -- Insert Current Active Trip for Carlos Mendoza (chofer) on VM-018
 INSERT INTO trips (driver_id, vehicle_id, trip_date, status, total_distance, estimated_time, total_stops) VALUES
