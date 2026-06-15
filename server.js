@@ -509,6 +509,83 @@ app.get('/api/trips', async (req, res) => {
   }
 });
 
+// POST /api/trips
+app.post('/api/trips', async (req, res) => {
+  const { driverId, vehicleId, tripDate, totalDistance, estimatedTime, origin, destination, taskDescription } = req.body;
+  
+  if (!driverId || !vehicleId || !totalDistance || !origin || !destination) {
+    return res.status(400).json({ success: false, error: 'Por favor completa todos los campos requeridos.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Check if driver already has an active trip in progress
+    const activeCheck = await client.query("SELECT id FROM trips WHERE driver_id = $1 AND status = 'En Progreso'", [driverId]);
+    if (activeCheck.rows.length > 0) {
+      throw new Error('El chofer ya tiene una Hoja de Ruta en progreso activa.');
+    }
+
+    // 2. Insert trip
+    const tripQuery = `
+      INSERT INTO trips (driver_id, vehicle_id, trip_date, status, total_distance, estimated_time, total_stops)
+      VALUES ($1, $2, $3, 'En Progreso', $4, $5, 2)
+      RETURNING id
+    `;
+    const tripResult = await client.query(tripQuery, [
+      parseInt(driverId, 10),
+      vehicleId,
+      tripDate || new Date(),
+      parseFloat(totalDistance),
+      estimatedTime || 'N/A'
+    ]);
+    const tripId = tripResult.rows[0].id;
+
+    // 3. Insert Stop 1 (Origen)
+    const stop1Query = `
+      INSERT INTO stops (trip_id, stop_order, name, stop_type, status, details, distance_to_next)
+      VALUES ($1, 1, $2, 'Origen', 'Completado', 'Salida: 08:00', $3)
+      RETURNING id
+    `;
+    await client.query(stop1Query, [tripId, origin, parseFloat(totalDistance)]);
+
+    // 4. Insert Stop 2 (Destino)
+    const stop2Query = `
+      INSERT INTO stops (trip_id, stop_order, name, stop_type, status, details, distance_to_next)
+      VALUES ($1, 2, $2, 'Destino', 'Siguiente', 'Entrega programada', 0)
+      RETURNING id
+    `;
+    const stop2Result = await client.query(stop2Query, [tripId, destination]);
+    const stop2Id = stop2Result.rows[0].id;
+
+    // 5. Insert Task for Stop 2
+    if (taskDescription && taskDescription.trim()) {
+      const taskQuery = `
+        INSERT INTO stop_tasks (stop_id, description, done)
+        VALUES ($1, $2, FALSE)
+      `;
+      await client.query(taskQuery, [stop2Id, taskDescription.trim()]);
+    } else {
+      // Default tasks
+      const taskQuery = `
+        INSERT INTO stop_tasks (stop_id, description, done)
+        VALUES ($1, 'Descarga de mercadería', FALSE), ($1, 'Firma de remito', FALSE)
+      `;
+      await client.query(taskQuery, [stop2Id]);
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, tripId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating trip:', error);
+    res.status(500).json({ success: false, error: error.message || 'Error al registrar la hoja de ruta.' });
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/trips/active
 app.get('/api/trips/active', async (req, res) => {
   const { driverId } = req.query;

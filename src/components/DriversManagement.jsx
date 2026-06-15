@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function DriversManagement({ drivers, setDrivers, vehicles = [] }) {
+export default function DriversManagement({ drivers, setDrivers, vehicles = [], reloadData }) {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null); // null when creating
@@ -9,6 +9,18 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [] }
   const [viewingExpensesDriver, setViewingExpensesDriver] = useState(null);
   const [trips, setTrips] = useState([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
+
+  // Route Assignment modal states
+  const [viewingAssignRouteDriver, setViewingAssignRouteDriver] = useState(null);
+  const [assignVehicleId, setAssignVehicleId] = useState('');
+  const [assignTripDate, setAssignTripDate] = useState(new Date().toISOString().substring(0, 10));
+  const [assignTotalDistance, setAssignTotalDistance] = useState('142');
+  const [assignEstimatedTime, setAssignEstimatedTime] = useState('4h 15m');
+  const [assignOrigin, setAssignOrigin] = useState('Base Operativa Buenos Aires');
+  const [assignDestination, setAssignDestination] = useState('CD Norte');
+  const [assignTaskDescription, setAssignTaskDescription] = useState('Descarga 5.5t de mercancía general y firma de remito digital');
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [assignError, setAssignError] = useState('');
 
   const handleOpenExpenses = async (driver) => {
     setViewingExpensesDriver(driver);
@@ -24,6 +36,68 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [] }
       console.error('Error fetching driver trips:', err);
     } finally {
       setLoadingTrips(false);
+    }
+  };
+
+  const handleOpenAssignRoute = (driver) => {
+    setViewingAssignRouteDriver(driver);
+    const assigned = vehicles.find(v => v.driverId === driver.id);
+    setAssignVehicleId(assigned ? assigned.id : (vehicles[0]?.id || ''));
+    setAssignTripDate(new Date().toISOString().substring(0, 10));
+    setAssignTotalDistance('142');
+    setAssignEstimatedTime('4h 15m');
+    setAssignOrigin('Base Operativa Buenos Aires');
+    setAssignDestination('CD Norte');
+    setAssignTaskDescription('Descarga 5.5t de mercancía general y firma de remito digital');
+    setAssignError('');
+  };
+
+  const handleAssignRouteSubmit = async (e) => {
+    e.preventDefault();
+    if (!assignVehicleId) {
+      setAssignError('Por favor selecciona un vehículo.');
+      return;
+    }
+    if (!assignTotalDistance || parseFloat(assignTotalDistance) <= 0) {
+      setAssignError('Por favor ingresa una distancia válida.');
+      return;
+    }
+    if (!assignOrigin.trim() || !assignDestination.trim()) {
+      setAssignError('Por favor ingresa origen y destino.');
+      return;
+    }
+
+    setAssignSubmitting(true);
+    setAssignError('');
+
+    try {
+      const res = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driverId: viewingAssignRouteDriver.id,
+          vehicleId: assignVehicleId,
+          tripDate: assignTripDate,
+          totalDistance: parseFloat(assignTotalDistance),
+          estimatedTime: assignEstimatedTime.trim(),
+          origin: assignOrigin.trim(),
+          destination: assignDestination.trim(),
+          taskDescription: assignTaskDescription.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setViewingAssignRouteDriver(null);
+        if (reloadData) reloadData();
+        alert('¡Hoja de Ruta asignada y enviada al chofer con éxito!');
+      } else {
+        setAssignError(data.error || 'Error al asignar la hoja de ruta.');
+      }
+    } catch (err) {
+      console.error('Error assigning route:', err);
+      setAssignError('Error de conexión con el servidor.');
+    } finally {
+      setAssignSubmitting(false);
     }
   };
   
@@ -265,6 +339,13 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [] }
                   <span className="material-symbols-outlined text-[18px]">receipt_long</span>
                 </button>
                 <button 
+                  onClick={() => handleOpenAssignRoute(driver)}
+                  className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-primary hover:text-secondary transition-colors focus:outline-none"
+                  title="Asignar Hoja de Ruta"
+                >
+                  <span className="material-symbols-outlined text-[18px]">alt_route</span>
+                </button>
+                <button 
                   onClick={() => handleOpenEdit(driver)}
                   className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-primary transition-colors focus:outline-none"
                   title="Editar chofer"
@@ -459,6 +540,145 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [] }
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Route Assignment Modal */}
+      {viewingAssignRouteDriver && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end justify-center max-w-md mx-auto">
+          <div className="bg-surface-container-high rounded-t-2xl w-full p-lg border-t border-surface-variant/40 shadow-2xl flex flex-col gap-md max-h-[85vh] overflow-y-auto animate-slideUp">
+            <div className="flex justify-between items-center border-b border-surface-variant/20 pb-sm">
+              <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                Asignar Hoja de Ruta
+              </h2>
+              <button 
+                type="button"
+                onClick={() => setViewingAssignRouteDriver(null)}
+                className="text-on-surface-variant hover:text-on-surface focus:outline-none"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Asigna un viaje en progreso a <strong>{viewingAssignRouteDriver.name}</strong>.
+            </p>
+
+            <form onSubmit={handleAssignRouteSubmit} className="flex flex-col gap-md">
+              {assignError && (
+                <div className="bg-error/15 border border-error/30 text-error rounded-xl p-sm text-xs font-semibold flex items-center gap-xs animate-shake">
+                  <span className="material-symbols-outlined text-[18px]">error</span>
+                  {assignError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold">Camión Asignado *</label>
+                <select 
+                  name="assignVehicleId"
+                  value={assignVehicleId}
+                  onChange={(e) => setAssignVehicleId(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  required
+                >
+                  <option value="">Seleccionar Camión...</option>
+                  {vehicles.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.id} - {v.model} ({v.driverId ? `Conductor: ${v.driver}` : 'Libre'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-sm">
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold font-semibold">Fecha *</label>
+                  <input 
+                    type="date" 
+                    name="assignTripDate"
+                    value={assignTripDate}
+                    onChange={(e) => setAssignTripDate(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2 px-3 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold font-semibold">Distancia (km) *</label>
+                  <input 
+                    type="number" 
+                    name="assignTotalDistance"
+                    placeholder="Ej: 142"
+                    value={assignTotalDistance}
+                    onChange={(e) => setAssignTotalDistance(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2 px-3 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md text-xs"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-sm">
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold font-semibold">Origen *</label>
+                  <input 
+                    type="text" 
+                    name="assignOrigin"
+                    placeholder="Ej: Base Bs. As."
+                    value={assignOrigin}
+                    onChange={(e) => setAssignOrigin(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2 px-3 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold font-semibold">Destino *</label>
+                  <input 
+                    type="text" 
+                    name="assignDestination"
+                    placeholder="Ej: CD Norte"
+                    value={assignDestination}
+                    onChange={(e) => setAssignDestination(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2 px-3 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md text-xs"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold font-semibold">Tiempo Estimado</label>
+                <input 
+                  type="text" 
+                  name="assignEstimatedTime"
+                  placeholder="Ej: 4h 15m"
+                  value={assignEstimatedTime}
+                  onChange={(e) => setAssignEstimatedTime(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                />
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold font-semibold">Detalle de Entrega / Tarea *</label>
+                <textarea 
+                  name="assignTaskDescription"
+                  placeholder="Instrucciones para el chofer..."
+                  value={assignTaskDescription}
+                  onChange={(e) => setAssignTaskDescription(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md min-h-[60px] text-xs"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={assignSubmitting}
+                className="w-full bg-primary hover:bg-primary/95 text-surface font-label-md text-label-md font-bold py-3 rounded-xl mt-sm flex items-center justify-center gap-xs shadow-lg shadow-green-950/20 active:scale-95 transition-all disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-[20px]">send</span>
+                {assignSubmitting ? 'Asignando...' : 'Asignar Hoja de Ruta'}
+              </button>
+            </form>
           </div>
         </div>
       )}

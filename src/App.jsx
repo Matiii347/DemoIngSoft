@@ -157,33 +157,33 @@ export default function App() {
   const [vehicles, setVehicles] = useState([]);
   const [settings, setSettings] = useState({ alert_red: 15, alert_yellow: 30, alert_green: 60 });
 
+  const loadData = async () => {
+    try {
+      const dRes = await fetch('/api/drivers');
+      const dData = await dRes.json();
+      if (dData.success) setDrivers(dData.drivers);
+
+      const vRes = await fetch('/api/vehicles');
+      const vData = await vRes.json();
+      if (vData.success) {
+        setVehicles(vData.vehicles);
+        if (vData.vehicles.length > 0 && !vData.vehicles.some(v => v.id === selectedVehicleId)) {
+          setSelectedVehicleId(vData.vehicles[0].id);
+        }
+      }
+
+      const sRes = await fetch('/api/settings');
+      const sData = await sRes.json();
+      if (sData.success) setSettings(sData.settings);
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
+  };
+
   // Fetch data on session start
   React.useEffect(() => {
     if (!currentUser) return;
-    
-    const fetchData = async () => {
-      try {
-        const dRes = await fetch('/api/drivers');
-        const dData = await dRes.json();
-        if (dData.success) setDrivers(dData.drivers);
-
-        const vRes = await fetch('/api/vehicles');
-        const vData = await vRes.json();
-        if (vData.success) {
-          setVehicles(vData.vehicles);
-          if (vData.vehicles.length > 0 && !vData.vehicles.some(v => v.id === selectedVehicleId)) {
-            setSelectedVehicleId(vData.vehicles[0].id);
-          }
-        }
-
-        const sRes = await fetch('/api/settings');
-        const sData = await sRes.json();
-        if (sData.success) setSettings(sData.settings);
-      } catch (err) {
-        console.error('Error loading data:', err);
-      }
-    };
-    fetchData();
+    loadData();
   }, [currentUser]);
 
   // Login handler
@@ -264,7 +264,7 @@ export default function App() {
         case 'detalle_vehiculo':
           return <VehicleDetail vehicleId={selectedVehicleId} vehicles={vehicles} setView={setView} />;
         case 'choferes':
-          return <DriversManagement drivers={drivers} setDrivers={setDrivers} vehicles={vehicles} />;
+          return <DriversManagement drivers={drivers} setDrivers={setDrivers} vehicles={vehicles} reloadData={loadData} />;
         case 'alertas':
           return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:
