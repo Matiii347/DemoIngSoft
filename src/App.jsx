@@ -124,7 +124,7 @@ function Login({ onLogin, drivers }) {
               }}
               className="bg-surface-container-high hover:bg-surface-bright border border-surface-variant/40 hover:border-primary/30 rounded-xl py-2 px-1 text-center font-label-md text-xs text-primary transition-all focus:outline-none active:scale-95"
             >
-              Gerente
+              Kamala Harris
             </button>
             <button 
               type="button"
@@ -311,14 +311,16 @@ export default function App() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="font-label-md text-label-md font-bold text-primary">GF</span>
+              <span className="font-label-md text-label-md font-bold text-primary">
+                {currentUser.name ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'VM'}
+              </span>
             )}
           </div>
           <h1 className="font-headline-md-mobile text-headline-md-mobile font-bold text-primary">VerdeMov</h1>
           
           {/* Role badge */}
           <span className="ml-2 px-2 py-0.5 rounded-full bg-surface-container-high border border-surface-variant text-[9px] uppercase font-bold text-on-surface-variant">
-            {role === 'operador' ? 'Gerente' : 'Chofer'}
+            {role === 'operador' ? 'Kamala Harris' : currentUser.name}
           </span>
         </div>
 

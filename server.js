@@ -56,6 +56,14 @@ pool.connect(async (err, client, release) => {
         WHERE id = 'VM-042' 
           AND driver_id = (SELECT id FROM users WHERE username = 'chofer');
       `);
+
+      // 1b. Update gerente user profile to Kamala Harris
+      await client.query(`
+        UPDATE users 
+        SET name = 'Kamala Harris',
+            avatar = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150'
+        WHERE username = 'gerente';
+      `);
       
       // 2. Add UNIQUE constraint to vehicles.driver_id if it doesn't exist
       try {

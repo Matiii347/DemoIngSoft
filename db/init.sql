@@ -81,7 +81,7 @@ CREATE TABLE stop_tasks (
 
 -- Insert Users
 INSERT INTO users (username, password, name, role, avatar, license_status) VALUES
-('gerente', 'gerente123', 'Gerente de Flota', 'operador', NULL, 'Vigente'),
+('gerente', 'gerente123', 'Kamala Harris', 'operador', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150', 'Vigente'),
 ('chofer', 'chofer123', 'Carlos Mendoza', 'conductor', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', 'Renovación Requerida'),
 ('ana', 'ana123', 'Ana Silva', 'conductor', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', 'Vigente'),
 ('luis', 'luis123', 'Luis García', 'conductor', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', 'Vigente');
