@@ -57,6 +57,37 @@ pool.connect(async (err, client, release) => {
   }
 });
 
+// Database Diagnostics Endpoint
+app.get('/api/db-test', async (req, res) => {
+  const status = {
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    envVars: Object.keys(process.env).filter(k => !k.includes('PASS') && !k.includes('KEY') && !k.includes('SECRET')),
+  };
+
+  try {
+    const client = await pool.connect();
+    status.connected = true;
+    try {
+      const dbRes = await client.query("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'");
+      status.tables = dbRes.rows.map(r => r.tablename);
+      
+      if (status.tables.includes('users')) {
+        const userCount = await client.query('SELECT COUNT(*) FROM users');
+        status.usersCount = parseInt(userCount.rows[0].count, 10);
+      }
+    } catch (queryErr) {
+      status.queryError = queryErr.message;
+    } finally {
+      client.release();
+    }
+  } catch (connErr) {
+    status.connected = false;
+    status.connectionError = connErr.message;
+  }
+
+  res.json(status);
+});
+
 // Login API Endpoint
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
