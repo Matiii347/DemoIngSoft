@@ -6,6 +6,7 @@ import DriverRoute from './components/DriverRoute';
 import DriverPanel from './components/DriverPanel';
 import AlertsMaintenance from './components/AlertsMaintenance';
 import DriversManagement from './components/DriversManagement';
+import RouteTemplates from './components/RouteTemplates';
 
 function Login({ onLogin, drivers }) {
   const [username, setUsername] = useState('');
@@ -156,6 +157,7 @@ export default function App() {
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [settings, setSettings] = useState({ alert_red: 15, alert_yellow: 30, alert_green: 60 });
+  const [dbAlerts, setDbAlerts] = useState([]);
 
   const loadData = async () => {
     try {
@@ -175,6 +177,10 @@ export default function App() {
       const sRes = await fetch('/api/settings');
       const sData = await sRes.json();
       if (sData.success) setSettings(sData.settings);
+
+      const aRes = await fetch('/api/alerts');
+      const aData = await aRes.json();
+      if (aData.success) setDbAlerts(aData.alerts);
     } catch (err) {
       console.error('Error loading data:', err);
     }
@@ -200,9 +206,50 @@ export default function App() {
     setView('dashboard');
   };
 
-  // Dynamically calculate warnings based on database VTV dates and settings thresholds
+  // Synchronize unread notifications count when dbAlerts change
+  React.useEffect(() => {
+    if (!showNotifications) {
+      setUnreadNotifications(dbAlerts.length);
+    }
+  }, [dbAlerts, showNotifications]);
+
+  const handleDismissAlert = async (id) => {
+    if (typeof id === 'number') {
+      try {
+        const response = await fetch(`/api/alerts/${id}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (data.success) {
+          // Reload alerts
+          const aRes = await fetch('/api/alerts');
+          const aData = await aRes.json();
+          if (aData.success) setDbAlerts(aData.alerts);
+        }
+      } catch (err) {
+        console.error('Error dismissing alert:', err);
+      }
+    } else {
+      alert('Las alertas de VTV deben corregirse actualizando la fecha de VTV del camión.');
+    }
+  };
+
+  // Dynamically calculate warnings based on database VTV dates and settings thresholds + DB alerts
   const getAlerts = () => {
     const activeAlerts = [];
+
+    // 1. Map database alerts
+    dbAlerts.forEach(a => {
+      activeAlerts.push({
+        id: a.id,
+        title: a.title,
+        desc: `Unidad: ${a.vehicleId}`,
+        severity: a.severity,
+        text: a.description
+      });
+    });
+
+    // 2. Map VTV alerts
     vehicles.forEach(v => {
       if (!v.vtvExpiration) return;
       const expDate = new Date(v.vtvExpiration);
@@ -240,7 +287,7 @@ export default function App() {
       }
     });
 
-    // Fallbacks to keep mock items if database is clean
+    // Fallbacks to keep mock items if database and alerts are clean
     if (activeAlerts.length === 0) {
       activeAlerts.push(
         { id: 'vtv', title: 'VTV Vencida', desc: 'VM-042', severity: 'error', text: 'Expiró hace 2 días' },
@@ -267,6 +314,8 @@ export default function App() {
           return <DriversManagement drivers={drivers} setDrivers={setDrivers} vehicles={vehicles} reloadData={loadData} />;
         case 'alertas':
           return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
+        case 'plantillas':
+          return <RouteTemplates />;
         default:
           return <Dashboard setView={setView} alerts={alerts} vehicles={vehicles} setSelectedVehicleId={setSelectedVehicleId} />;
       }
@@ -372,6 +421,15 @@ export default function App() {
                 <span className="material-symbols-outlined">warning</span>
                 <span className="font-body-md text-sm">Alertas y VTV</span>
               </button>
+              <button 
+                onClick={() => setView('plantillas')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'plantillas' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">route</span>
+                <span className="font-body-md text-sm">Plantillas HDR</span>
+              </button>
             </>
           ) : (
             <>
@@ -467,21 +525,44 @@ export default function App() {
 
               {/* Simple Notifications Popover */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-64 bg-surface-container-high rounded-xl p-md border border-surface-variant shadow-2xl z-50 animate-fadeIn">
+                <div className="absolute right-0 mt-2 w-72 bg-surface-container-high rounded-xl p-md border border-surface-variant shadow-2xl z-50 animate-fadeIn">
                   <h4 className="font-label-md text-label-md text-on-surface font-bold border-b border-surface-variant/40 pb-2 mb-2 flex justify-between">
                     <span>Notificaciones</span>
                     <span className="text-[10px] text-primary">Novedades</span>
                   </h4>
-                  <ul className="flex flex-col gap-sm">
-                    <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-error text-on-surface">
-                      <span className="font-bold">VM-042:</span> Alerta crítica por VTV vencida.
-                    </li>
-                    <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-tertiary text-on-surface">
-                      <span className="font-bold">VM-018:</span> Nivel de batería óptimo para salida.
-                    </li>
-                    <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-primary text-on-surface">
-                      <span className="font-bold">Rutas:</span> Asignación de hoja de ruta CD Norte activa.
-                    </li>
+                  <ul className="flex flex-col gap-sm max-h-64 overflow-y-auto">
+                    {alerts.length === 0 ? (
+                      <li className="text-xs text-on-surface-variant italic text-center py-2">
+                        No hay notificaciones
+                      </li>
+                    ) : (
+                      alerts.map(a => (
+                        <li 
+                          key={a.id} 
+                          className={`text-xs bg-surface-container p-sm rounded border-l-2 text-on-surface flex justify-between items-start gap-xs group/item ${
+                            a.severity === 'error' 
+                              ? 'border-error' 
+                              : a.severity === 'warning' 
+                                ? 'border-tertiary' 
+                                : 'border-primary'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <span className="font-bold block text-on-surface-variant mb-0.5">{a.title}</span>
+                            <p className="font-medium leading-relaxed text-on-surface">{a.text}</p>
+                          </div>
+                          {typeof a.id === 'number' && (
+                            <button 
+                              onClick={() => handleDismissAlert(a.id)}
+                              className="text-on-surface-variant/40 hover:text-error transition-colors focus:outline-none opacity-0 group-hover/item:opacity-100 shrink-0"
+                              title="Descartar"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">close</span>
+                            </button>
+                          )}
+                        </li>
+                      ))
+                    )}
                   </ul>
                 </div>
               )}
@@ -541,12 +622,22 @@ export default function App() {
 
             <button 
               onClick={() => setView('alertas')}
-              className={`flex flex-col items-center justify-center px-4 py-1 transition-all duration-200 focus:outline-none ${
+              className={`flex flex-col items-center justify-center px-3 py-1 transition-all duration-200 focus:outline-none ${
                 view === 'alertas' ? 'bg-primary-container text-on-primary-container rounded-full' : 'text-on-surface-variant hover:text-on-surface'
               }`}
             >
               <span className="material-symbols-outlined" style={{ fontVariationSettings: view === 'alertas' ? "'FILL' 1" : "'FILL' 0" }}>warning</span>
               <span className="font-label-md text-[10px] mt-1">Alertas</span>
+            </button>
+
+            <button 
+              onClick={() => setView('plantillas')}
+              className={`flex flex-col items-center justify-center px-3 py-1 transition-all duration-200 focus:outline-none ${
+                view === 'plantillas' ? 'bg-primary-container text-on-primary-container rounded-full' : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: view === 'plantillas' ? "'FILL' 1" : "'FILL' 0" }}>route</span>
+              <span className="font-label-md text-[10px] mt-1">Plantillas</span>
             </button>
           </>
         ) : (

@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
 
+// Vehicle model templates for quick fleet registration
+const MODEL_TEMPLATES = [
+  { label: 'e-Truck Pro 2024', model: 'e-Truck Pro 2024', cargoLimit: 4.5, rangeLeft: 420 },
+  { label: 'e-Truck Pro', model: 'e-Truck Pro', cargoLimit: 4.5, rangeLeft: 400 },
+  { label: 'e-Truck Delivery', model: 'e-Truck Delivery', cargoLimit: 24.0, rangeLeft: 340 },
+  { label: 'e-Truck Heavy Duty', model: 'e-Truck Heavy Duty', cargoLimit: 12.0, rangeLeft: 380 },
+  { label: 'e-Cargo Midi', model: 'e-Cargo Midi', cargoLimit: 7.5, rangeLeft: 360 },
+];
+
 export default function FleetList({ vehicles, setVehicles, drivers, setView, setSelectedVehicleId }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
@@ -17,10 +26,11 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
   const [rangeLeft, setRangeLeft] = useState(400);
   const [currentLocation, setCurrentLocation] = useState('');
   const [vtvExpiration, setVtvExpiration] = useState('');
+  const [kilometers, setKilometers] = useState(0.0);
   const [error, setError] = useState('');
 
   // Available filters
-  const filters = ['Todos', 'En Ruta', 'Cargando', 'Crítico'];
+  const filters = ['Todos', 'En Ruta', 'Cargando', 'Crítico', 'En Mantenimiento'];
 
   // Filter vehicles based on search query and status filter
   const filteredVehicles = vehicles.filter(v => {
@@ -42,6 +52,8 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
         return 'bg-tertiary-container text-on-tertiary-container';
       case 'Crítico':
         return 'bg-error-container text-on-error-container';
+      case 'En Mantenimiento':
+        return 'bg-info text-white';
       default:
         return 'bg-surface-variant text-on-surface-variant';
     }
@@ -55,6 +67,8 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
         return 'ev_station';
       case 'Crítico':
         return 'warning';
+      case 'En Mantenimiento':
+        return 'build';
       default:
         return 'info';
     }
@@ -64,6 +78,7 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
     if (status === 'Crítico') return 'bg-error';
     if (battery < 20) return 'bg-error';
     if (status === 'Cargando') return 'bg-tertiary';
+    if (status === 'En Mantenimiento') return 'bg-info';
     return 'bg-primary';
   };
 
@@ -71,6 +86,7 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
     if (status === 'Crítico') return 'text-error';
     if (battery < 20) return 'text-error';
     if (status === 'Cargando') return 'text-tertiary';
+    if (status === 'En Mantenimiento') return 'text-info';
     return 'text-primary';
   };
 
@@ -87,6 +103,7 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
     setRangeLeft(400);
     setCurrentLocation('');
     setVtvExpiration('');
+    setKilometers(0.0);
     setError('');
     setShowModal(true);
   };
@@ -104,6 +121,7 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
     setRangeLeft(vehicle.rangeLeft);
     setCurrentLocation(vehicle.currentLocation || '');
     setVtvExpiration(vehicle.vtvExpiration || '');
+    setKilometers(vehicle.kilometers || 0.0);
     setError('');
     setShowModal(true);
   };
@@ -146,7 +164,8 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
       currentCargo: parseFloat(currentCargo),
       rangeLeft: parseInt(rangeLeft, 10),
       currentLocation: currentLocation.trim(),
-      vtvExpiration: vtvExpiration || null
+      vtvExpiration: vtvExpiration || null,
+      kilometers: parseFloat(kilometers)
     };
 
     if (payload.driverId) {
@@ -321,6 +340,17 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
                   ></div>
                 </div>
               </div>
+
+              {/* Kilómetros */}
+              <div className="mt-sm flex justify-between items-center text-xs text-on-surface-variant">
+                <span className="flex items-center gap-xs font-label-md text-label-md">
+                  <span className="material-symbols-outlined text-[16px]">distance</span>
+                  Km Recorridos
+                </span>
+                <span className="font-bold text-on-surface text-label-md">
+                  {parseFloat(vehicle.kilometers || 0).toLocaleString('es-AR')} km
+                </span>
+              </div>
             </div>
           ))
         ) : (
@@ -367,6 +397,43 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
                 </div>
               )}
 
+              {/* ⚡ Model Template Quick-Fill */}
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold flex items-center gap-xs">
+                  <span className="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+                  Plantilla de Modelo (carga automática)
+                </label>
+                <div className="flex flex-wrap gap-xs">
+                  {MODEL_TEMPLATES.map(tmpl => (
+                    <button
+                      key={tmpl.label}
+                      type="button"
+                      onClick={() => {
+                        setModel(tmpl.model);
+                        setCargoLimit(tmpl.cargoLimit);
+                        setRangeLeft(tmpl.rangeLeft);
+                        setError('');
+                      }}
+                      className={`text-xs px-3 py-1.5 rounded-full border font-semibold transition-all focus:outline-none ${
+                        model === tmpl.model
+                          ? 'bg-primary text-surface border-primary shadow-md'
+                          : 'bg-surface-container border-surface-variant/60 text-on-surface-variant hover:border-primary/40 hover:text-primary'
+                      }`}
+                    >
+                      {tmpl.label}
+                    </button>
+                  ))}
+                </div>
+                {model && (
+                  <p className="text-xs text-primary font-medium flex items-center gap-xs">
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                    Auto-completado: {cargoLimit}t · {rangeLeft}km autonomía
+                  </p>
+                )}
+              </div>
+
+              <div className="h-px bg-surface-variant/40" />
+
               <div className="flex flex-col gap-xs">
                 <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Identificador de Unidad *</label>
                 <input 
@@ -406,6 +473,7 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
                     <option value="En Ruta">En Ruta</option>
                     <option value="Cargando">Cargando</option>
                     <option value="Crítico">Crítico</option>
+                    <option value="En Mantenimiento">En Mantenimiento</option>
                   </select>
                 </div>
 
@@ -423,19 +491,33 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
                 </div>
               </div>
 
-              <div className="flex flex-col gap-xs">
-                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Chofer Asignado</label>
-                <select 
-                  name="driverId"
-                  value={driverId}
-                  onChange={(e) => setDriverId(e.target.value)}
-                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
-                >
-                  <option value="">Sin Asignar</option>
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} (@{d.username})</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-sm">
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Chofer Asignado</label>
+                  <select 
+                    name="driverId"
+                    value={driverId}
+                    onChange={(e) => setDriverId(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  >
+                    <option value="">Sin Asignar</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.name} (@{d.username})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Kilómetros</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    name="kilometers"
+                    value={kilometers}
+                    onChange={(e) => setKilometers(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-sm">

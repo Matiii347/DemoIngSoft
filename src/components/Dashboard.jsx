@@ -9,7 +9,7 @@ export default function Dashboard({ setView, alerts = [], vehicles = [], setSele
     ? Math.round(vehicles.reduce((acc, v) => acc + v.battery, 0) / totalVehicles)
     : 78;
 
-  const activeAlertsCount = alerts.filter(a => a.id !== 'vtv' && a.id !== 'motores' && a.id !== 'neumaticos').length || alerts.length;
+  const activeAlertsCount = alerts.length;
 
   // Map database alerts to dashboard list format
   const criticalAlerts = alerts.map(alert => ({
@@ -17,8 +17,8 @@ export default function Dashboard({ setView, alerts = [], vehicles = [], setSele
     title: alert.title,
     desc: alert.desc,
     when: alert.text,
-    urgency: alert.severity === 'error' ? 'high' : 'warning'
-  })).slice(0, 3); // Show top 3 alerts
+    urgency: alert.severity === 'error' ? 'high' : alert.severity === 'warning' ? 'warning' : 'info'
+  })).slice(0, 5); // Show top 5 alerts
 
   return (
     <div className="flex flex-col gap-lg animate-fadeIn">
@@ -93,7 +93,13 @@ export default function Dashboard({ setView, alerts = [], vehicles = [], setSele
           <ul className="flex flex-col gap-sm">
             {criticalAlerts.map(alert => (
               <li key={alert.id} className="bg-surface-container rounded-lg p-sm flex items-center gap-md hover:bg-surface-container-high transition-colors">
-                <div className={`w-2 h-2 rounded-full ${alert.urgency === 'high' ? 'bg-error shadow-[0_0_8px_rgba(255,180,171,0.6)]' : 'bg-tertiary shadow-[0_0_8px_rgba(255,185,95,0.6)]'}`}></div>
+                <div className={`w-2 h-2 rounded-full shrink-0 ${
+                  alert.urgency === 'high' 
+                    ? 'bg-error shadow-[0_0_8px_rgba(220,38,38,0.6)]' 
+                    : alert.urgency === 'warning' 
+                      ? 'bg-tertiary shadow-[0_0_8px_rgba(245,158,11,0.6)]' 
+                      : 'bg-info shadow-[0_0_8px_rgba(14,165,233,0.6)]'
+                }`}></div>
                 <div className="flex-1">
                   <p className="font-label-md text-label-md text-on-surface font-bold">{alert.title}</p>
                   <p className="font-body-sm text-body-sm text-on-surface-variant">{alert.desc}</p>

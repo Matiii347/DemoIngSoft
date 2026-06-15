@@ -50,7 +50,15 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
               cy="50" 
               fill="none" 
               r="45" 
-              stroke={vehicle.status === 'Crítico' ? '#DC2626' : '#16A34A'} 
+              stroke={
+                vehicle.status === 'Crítico' 
+                  ? '#DC2626' 
+                  : vehicle.status === 'Cargando' 
+                    ? '#F59E0B' 
+                    : vehicle.status === 'En Mantenimiento' 
+                      ? '#0EA5E9' 
+                      : '#16A34A'
+              }
               strokeDasharray={perimeter} 
               strokeDashoffset={strokeDashoffset} 
               strokeLinecap="round" 
@@ -58,8 +66,16 @@ export default function DriverPanel({ vehicleId, vehicles, setView }) {
             ></circle>
           </svg>
           <div className="flex flex-col items-center justify-center text-center">
-            <span className={`material-symbols-outlined text-[32px] mb-xs ${vehicle.status === 'Crítico' ? 'text-error' : 'text-primary'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-              {vehicle.status === 'Cargando' ? 'electric_bolt' : 'electric_bolt'}
+            <span className={`material-symbols-outlined text-[32px] mb-xs ${
+              vehicle.status === 'Crítico' 
+                ? 'text-error' 
+                : vehicle.status === 'Cargando' 
+                  ? 'text-tertiary' 
+                  : vehicle.status === 'En Mantenimiento' 
+                    ? 'text-info' 
+                    : 'text-primary'
+            }`} style={{ fontVariationSettings: "'FILL' 1" }}>
+              {vehicle.status === 'Cargando' ? 'electric_bolt' : vehicle.status === 'En Mantenimiento' ? 'build' : 'electric_bolt'}
             </span>
             <span className="font-headline-xl text-headline-xl text-on-background tracking-tight font-bold">
               {vehicle.battery}<span className="text-headline-md text-on-surface-variant font-normal">%</span>

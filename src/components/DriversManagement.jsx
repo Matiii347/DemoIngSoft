@@ -276,91 +276,103 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [], 
           filteredDrivers.map(driver => (
             <div 
               key={driver.id}
-              className="bg-surface-container rounded-xl p-md border border-surface-variant/30 flex items-center justify-between hover:border-primary/45 transition-colors group animate-fadeIn"
+              className="relative bg-surface-container rounded-2xl p-md border border-surface-variant/30 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-black/25 flex flex-col justify-between gap-md group animate-fadeIn"
               data-testid={`driver-card-${driver.username}`}
             >
+              {/* Badge for License - Top Right */}
+              <div className="absolute top-md right-md">
+                <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${getLicenseBadgeStyle(driver.licenseStatus)}`}>
+                  {driver.licenseStatus || 'Vigente'}
+                </span>
+              </div>
+
+              {/* Driver Profile Header */}
               <div className="flex items-center gap-md">
-                {/* Avatar */}
-                <div className="w-12 h-12 rounded-full border-2 border-surface-variant/50 overflow-hidden flex-shrink-0">
+                <div className="relative w-14 h-14 rounded-full border-2 border-primary/20 group-hover:border-primary/65 overflow-hidden flex-shrink-0 transition-colors">
                   <img 
                     src={driver.avatar} 
                     alt={driver.name} 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
                       e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
                     }}
                   />
                 </div>
-                {/* Info */}
-                <div className="flex flex-col gap-1">
-                  <h3 className="font-headline-sm text-sm text-on-surface font-bold leading-tight">{driver.name}</h3>
-                  <div className="flex items-center gap-sm">
-                    <span className="font-label-md text-[11px] text-on-surface-variant font-medium">@{driver.username}</span>
-                    <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider ${getLicenseBadgeStyle(driver.licenseStatus)}`}>
-                      {driver.licenseStatus || 'Vigente'}
-                    </span>
-                  </div>
-
-                  {/* Location & Vehicle Assignment */}
-                  {(() => {
-                    const vehicle = vehicles.find(v => v.driverId === driver.id);
-                    if (vehicle) {
-                      return (
-                        <div className="mt-1 flex flex-col gap-0.5">
-                          <div className="flex items-center gap-xs font-body-sm text-[11px] text-primary">
-                            <span className="material-symbols-outlined text-[14px]">local_shipping</span>
-                            <span>Manejando <strong>{vehicle.id}</strong> ({vehicle.status})</span>
-                          </div>
-                          <div className="flex items-center gap-xs font-body-sm text-[11px] text-on-surface-variant">
-                            <span className="material-symbols-outlined text-[14px]">location_on</span>
-                            <span className="truncate max-w-[200px]">{vehicle.currentLocation || 'Base Operativa'}</span>
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div className="flex items-center gap-xs font-body-sm text-[11px] text-on-surface-variant/60 mt-1">
-                          <span className="material-symbols-outlined text-[14px]">person_off</span>
-                          <span>Sin unidad asignada</span>
-                        </div>
-                      );
-                    }
-                  })()}
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="font-headline-sm text-base text-on-surface font-bold leading-tight group-hover:text-primary transition-colors">
+                    {driver.name}
+                  </h3>
+                  <span className="font-label-md text-xs text-on-surface-variant font-medium">@{driver.username}</span>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-xs">
-                <button 
-                  onClick={() => handleOpenExpenses(driver)}
-                  className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-secondary hover:text-primary transition-colors focus:outline-none"
-                  title="Ver gastos y viajes"
-                >
-                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                </button>
-                <button 
-                  onClick={() => handleOpenAssignRoute(driver)}
-                  className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-primary hover:text-secondary transition-colors focus:outline-none"
-                  title="Asignar Hoja de Ruta"
-                >
-                  <span className="material-symbols-outlined text-[18px]">alt_route</span>
-                </button>
-                <button 
-                  onClick={() => handleOpenEdit(driver)}
-                  className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-primary transition-colors focus:outline-none"
-                  title="Editar chofer"
-                  data-testid={`btn-edit-${driver.username}`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">edit</span>
-                </button>
-                <button 
-                  onClick={() => handleDelete(driver.id)}
-                  className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-error-container/20 flex items-center justify-center text-error transition-colors focus:outline-none"
-                  title="Eliminar chofer"
-                  data-testid={`btn-delete-${driver.username}`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">delete</span>
-                </button>
+              {/* Status / Assignment Info Area */}
+              <div className="flex-1 bg-surface-container-low rounded-xl p-sm border border-surface-variant/20 flex flex-col gap-xs justify-center min-h-[64px]">
+                {(() => {
+                  const vehicle = vehicles.find(v => v.driverId === driver.id);
+                  if (vehicle) {
+                    return (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-sm font-body-sm text-[12px] text-primary">
+                          <span className="material-symbols-outlined text-[16px] filled">local_shipping</span>
+                          <span>Manejando <strong className="text-on-surface">{vehicle.id}</strong> ({vehicle.status})</span>
+                        </div>
+                        <div className="flex items-center gap-sm font-body-sm text-[12px] text-on-surface-variant">
+                          <span className="material-symbols-outlined text-[16px] text-outline">location_on</span>
+                          <span className="truncate max-w-[220px]" title={vehicle.currentLocation}>{vehicle.currentLocation || 'Base Operativa'}</span>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="flex items-center gap-sm font-body-sm text-[12px] text-on-surface-variant/50 justify-center">
+                        <span className="material-symbols-outlined text-[18px] text-outline-variant">person_off</span>
+                        <span>Sin unidad asignada</span>
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center justify-between border-t border-surface-variant/20 pt-sm mt-xs gap-xs">
+                <div className="flex items-center gap-xs">
+                  <button 
+                    onClick={() => handleOpenExpenses(driver)}
+                    className="h-9 px-3 rounded-xl bg-surface-container-high hover:bg-surface-bright flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-primary transition-all font-label-md text-xs border border-surface-variant/30 focus:outline-none"
+                    title="Ver gastos y viajes"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                    <span>Gastos</span>
+                  </button>
+                  <button 
+                    onClick={() => handleOpenAssignRoute(driver)}
+                    className="h-9 px-3 rounded-xl bg-surface-container-high hover:bg-surface-bright flex items-center justify-center gap-1.5 text-primary hover:text-primary/80 transition-all font-label-md text-xs border border-surface-variant/30 focus:outline-none"
+                    title="Asignar Hoja de Ruta"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">alt_route</span>
+                    <span>Ruta</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-xs">
+                  <button 
+                    onClick={() => handleOpenEdit(driver)}
+                    className="w-9 h-9 rounded-xl bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-on-surface-variant hover:text-primary transition-all border border-surface-variant/30 focus:outline-none"
+                    title="Editar chofer"
+                    data-testid={`btn-edit-${driver.username}`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(driver.id)}
+                    className="w-9 h-9 rounded-xl bg-surface-container-high hover:bg-error/15 flex items-center justify-center text-on-surface-variant hover:text-error transition-all border border-surface-variant/30 focus:outline-none"
+                    title="Eliminar chofer"
+                    data-testid={`btn-delete-${driver.username}`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))

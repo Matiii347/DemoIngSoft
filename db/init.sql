@@ -24,8 +24,9 @@ CREATE TABLE users (
 CREATE TABLE vehicles (
     id VARCHAR(20) PRIMARY KEY,
     model VARCHAR(100) NOT NULL,
-    status VARCHAR(50) NOT NULL CHECK (status IN ('En Ruta', 'Cargando', 'Crítico')),
+    status VARCHAR(50) NOT NULL CHECK (status IN ('En Ruta', 'Cargando', 'Crítico', 'En Mantenimiento')),
     battery INTEGER NOT NULL CHECK (battery >= 0 AND battery <= 100),
+    kilometers NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     driver_id INTEGER UNIQUE REFERENCES users(id) ON DELETE SET NULL,
     cargo_limit NUMERIC(5,2) NOT NULL,
     current_cargo NUMERIC(5,2) NOT NULL,

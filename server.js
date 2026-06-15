@@ -85,6 +85,27 @@ pool.connect(async (err, client, release) => {
       } catch (tripsErr) {
         console.error('Error migrating trips table:', tripsErr);
       }
+
+      // 4. Update check constraint on vehicles.status to include 'En Mantenimiento'
+      try {
+        await client.query(`
+          ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
+          ALTER TABLE vehicles ADD CONSTRAINT vehicles_status_check CHECK (status IN ('En Ruta', 'Cargando', 'Crítico', 'En Mantenimiento'));
+        `);
+        console.log('Successfully updated vehicles_status_check constraint to include En Mantenimiento.');
+      } catch (checkErr) {
+        console.error('Error updating status check constraint:', checkErr);
+      }
+
+      // 5. Add kilometers column to vehicles table if it doesn't exist
+      try {
+        await client.query(`
+          ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS kilometers NUMERIC(10,2) DEFAULT 0.00;
+        `);
+        console.log('Successfully enforced schema migration for vehicles table (kilometers column).');
+      } catch (kmErr) {
+        console.error('Error migrating vehicles table (kilometers):', kmErr);
+      }
     }
 
     // Check if 'system_settings' table exists
@@ -112,6 +133,56 @@ pool.connect(async (err, client, release) => {
       `);
       console.log('system_settings table created successfully!');
     }
+
+    // Migration: route_templates table
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS route_templates (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          origin VARCHAR(100) NOT NULL,
+          destination VARCHAR(100) NOT NULL,
+          total_distance NUMERIC(6,2) NOT NULL,
+          estimated_time VARCHAR(20),
+          stops_json TEXT,
+          task_description TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      // Seed a few starter templates if empty
+      const rtCount = await client.query('SELECT COUNT(*) FROM route_templates');
+      if (parseInt(rtCount.rows[0].count, 10) === 0) {
+        await client.query(`
+          INSERT INTO route_templates (name, origin, destination, total_distance, estimated_time, stops_json, task_description) VALUES
+          ('CABA → Lanús', 'Base Operativa Buenos Aires', 'Depósito Lanús', 45.0, '1h 10m', '[]', 'Descarga de mercadería y firma de remito'),
+          ('CABA → Quilmes', 'Base Operativa Buenos Aires', 'Centro Distribución Quilmes', 38.0, '55m', '[]', 'Entrega y descarga completa'),
+          ('CABA → La Plata', 'Base Operativa Buenos Aires', 'Terminal La Plata', 68.0, '1h 45m', '["Parada CD Norte", "Carga Rápida YPF"]', 'Entrega programada con firma digital');
+        `);
+      }
+      console.log('route_templates table ready.');
+    } catch (rtErr) {
+      console.error('Error migrating route_templates:', rtErr);
+    }
+
+    // Migration: maintenances table
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS maintenances (
+          id SERIAL PRIMARY KEY,
+          vehicle_id VARCHAR(20) REFERENCES vehicles(id) ON DELETE CASCADE,
+          maintenance_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          maintenance_type VARCHAR(80) NOT NULL,
+          cost NUMERIC(10,2) DEFAULT 0.00,
+          parts_used TEXT,
+          workshop VARCHAR(100),
+          notes TEXT
+        );
+      `);
+      console.log('maintenances table ready.');
+    } catch (maintErr) {
+      console.error('Error migrating maintenances:', maintErr);
+    }
+
   } catch (initErr) {
     console.error('Error during database initialization:', initErr);
   } finally {
@@ -223,6 +294,7 @@ app.get('/api/vehicles', async (req, res) => {
         v.model, 
         v.status, 
         v.battery, 
+        v.kilometers,
         v.driver_id AS "driverId", 
         u.name AS "driver", 
         u.avatar AS "driverImage",
@@ -240,6 +312,7 @@ app.get('/api/vehicles', async (req, res) => {
     const vehicles = result.rows.map(v => ({
       ...v,
       battery: parseInt(v.battery, 10),
+      kilometers: parseFloat(v.kilometers || 0),
       cargoLimit: parseFloat(v.cargoLimit),
       currentCargo: parseFloat(v.currentCargo),
       rangeLeft: parseInt(v.rangeLeft, 10),
@@ -255,7 +328,7 @@ app.get('/api/vehicles', async (req, res) => {
 
 // POST /api/vehicles
 app.post('/api/vehicles', async (req, res) => {
-  const { id, model, status, battery, driverId, cargoLimit, currentCargo, rangeLeft, currentLocation, vtvExpiration } = req.body;
+  const { id, model, status, battery, driverId, cargoLimit, currentCargo, rangeLeft, currentLocation, vtvExpiration, kilometers } = req.body;
   try {
     if (driverId) {
       const duplicateCheck = await pool.query('SELECT id FROM vehicles WHERE driver_id = $1', [driverId]);
@@ -264,8 +337,8 @@ app.post('/api/vehicles', async (req, res) => {
       }
     }
     const query = `
-      INSERT INTO vehicles (id, model, status, battery, driver_id, cargo_limit, current_cargo, range_left, current_location, vtv_expiration)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO vehicles (id, model, status, battery, driver_id, cargo_limit, current_cargo, range_left, current_location, vtv_expiration, kilometers)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id
     `;
     await pool.query(query, [
@@ -278,7 +351,8 @@ app.post('/api/vehicles', async (req, res) => {
       currentCargo || 0.0, 
       rangeLeft || 400, 
       currentLocation || '', 
-      vtvExpiration || null
+      vtvExpiration || null,
+      kilometers ? parseFloat(kilometers) : 0.00
     ]);
     
     const fetchQuery = `
@@ -287,6 +361,7 @@ app.post('/api/vehicles', async (req, res) => {
         v.model, 
         v.status, 
         v.battery, 
+        v.kilometers,
         v.driver_id AS "driverId", 
         u.name AS "driver", 
         u.avatar AS "driverImage",
@@ -303,6 +378,7 @@ app.post('/api/vehicles', async (req, res) => {
     const vehicle = {
       ...result.rows[0],
       battery: parseInt(result.rows[0].battery, 10),
+      kilometers: parseFloat(result.rows[0].kilometers || 0),
       cargoLimit: parseFloat(result.rows[0].cargoLimit),
       currentCargo: parseFloat(result.rows[0].currentCargo),
       rangeLeft: parseInt(result.rows[0].rangeLeft, 10),
@@ -322,7 +398,7 @@ app.post('/api/vehicles', async (req, res) => {
 // PUT /api/vehicles/:id
 app.put('/api/vehicles/:id', async (req, res) => {
   const { id } = req.params;
-  const { model, status, battery, driverId, cargoLimit, currentCargo, rangeLeft, currentLocation, vtvExpiration } = req.body;
+  const { model, status, battery, driverId, cargoLimit, currentCargo, rangeLeft, currentLocation, vtvExpiration, kilometers } = req.body;
   try {
     if (driverId) {
       const duplicateCheck = await pool.query('SELECT id FROM vehicles WHERE driver_id = $1 AND id != $2', [driverId, id]);
@@ -332,8 +408,8 @@ app.put('/api/vehicles/:id', async (req, res) => {
     }
     const query = `
       UPDATE vehicles 
-      SET model = $1, status = $2, battery = $3, driver_id = $4, cargo_limit = $5, current_cargo = $6, range_left = $7, current_location = $8, vtv_expiration = $9
-      WHERE id = $10
+      SET model = $1, status = $2, battery = $3, driver_id = $4, cargo_limit = $5, current_cargo = $6, range_left = $7, current_location = $8, vtv_expiration = $9, kilometers = $10
+      WHERE id = $11
       RETURNING id
     `;
     const updateResult = await pool.query(query, [
@@ -346,6 +422,7 @@ app.put('/api/vehicles/:id', async (req, res) => {
       rangeLeft, 
       currentLocation, 
       vtvExpiration || null, 
+      kilometers ? parseFloat(kilometers) : 0.00,
       id
     ]);
     
@@ -359,6 +436,7 @@ app.put('/api/vehicles/:id', async (req, res) => {
         v.model, 
         v.status, 
         v.battery, 
+        v.kilometers,
         v.driver_id AS "driverId", 
         u.name AS "driver", 
         u.avatar AS "driverImage",
@@ -375,6 +453,7 @@ app.put('/api/vehicles/:id', async (req, res) => {
     const vehicle = {
       ...result.rows[0],
       battery: parseInt(result.rows[0].battery, 10),
+      kilometers: parseFloat(result.rows[0].kilometers || 0),
       cargoLimit: parseFloat(result.rows[0].cargoLimit),
       currentCargo: parseFloat(result.rows[0].currentCargo),
       rangeLeft: parseInt(result.rows[0].rangeLeft, 10),
@@ -652,30 +731,93 @@ app.get('/api/trips/active', async (req, res) => {
 app.put('/api/trips/:id/complete', async (req, res) => {
   const { id } = req.params;
   const { expensesAmount, expensesDetail, finalKm } = req.body;
+  
+  const client = await pool.connect();
   try {
-    const query = `
+    await client.query('BEGIN');
+    
+    // 1. Get original trip details to know the vehicle and driver
+    const tripQuery = `
+      SELECT t.vehicle_id, t.driver_id, u.name AS driver_name
+      FROM trips t
+      JOIN users u ON t.driver_id = u.id
+      WHERE t.id = $1
+    `;
+    const tripRes = await client.query(tripQuery, [parseInt(id, 10)]);
+    if (tripRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Hoja de ruta no encontrada.' });
+    }
+    const { vehicle_id, driver_id, driver_name } = tripRes.rows[0];
+    const distToUse = finalKm ? parseFloat(finalKm) : 0;
+    
+    // 2. Update trip status, expenses and distance
+    const updateTripQuery = `
       UPDATE trips 
       SET status = 'Completado',
           expenses_amount = $1,
           expenses_detail = $2,
-          total_distance = COALESCE($3, total_distance)
+          total_distance = $3
       WHERE id = $4
-      RETURNING id
     `;
-    const result = await pool.query(query, [
+    await client.query(updateTripQuery, [
       parseFloat(expensesAmount || 0),
       expensesDetail || '',
-      finalKm ? parseFloat(finalKm) : null,
+      distToUse,
       parseInt(id, 10)
     ]);
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Hoja de ruta no encontrada.' });
-    }
-    res.json({ success: true, message: 'Hoja de ruta completada y rendida.' });
+    // 3. Update vehicle's kilometers
+    const updateVehicleQuery = `
+      UPDATE vehicles
+      SET kilometers = kilometers + $1
+      WHERE id = $2
+    `;
+    await client.query(updateVehicleQuery, [distToUse, vehicle_id]);
+    
+    // 4. Create database notification/alert
+    const insertAlertQuery = `
+      INSERT INTO alerts (vehicle_id, title, description, severity, status)
+      VALUES ($1, $2, $3, 'info', 'Activa')
+    `;
+    const alertTitle = `Ruta Finalizada (${vehicle_id})`;
+    const alertDesc = `El chofer ${driver_name} completó la ruta. Distancia: ${distToUse} km. Gastos: $${parseFloat(expensesAmount || 0).toLocaleString('es-AR')} (${expensesDetail || 'Sin detalle'}).`;
+    await client.query(insertAlertQuery, [vehicle_id, alertTitle, alertDesc]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Hoja de ruta completada, kilómetros registrados y alerta creada.' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error completing trip:', error);
     res.status(500).json({ success: false, error: 'Error al completar la hoja de ruta.' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/alerts
+app.get('/api/alerts', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, vehicle_id AS "vehicleId", title, description, severity, status FROM alerts ORDER BY id DESC');
+    res.json({ success: true, alerts: result.rows });
+  } catch (error) {
+    console.error('Error fetching alerts:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener alertas.' });
+  }
+});
+
+// DELETE /api/alerts/:id
+app.delete('/api/alerts/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM alerts WHERE id = $1 RETURNING id', [parseInt(id, 10)]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Alerta no encontrada.' });
+    }
+    res.json({ success: true, message: 'Alerta descartada con éxito.' });
+  } catch (error) {
+    console.error('Error deleting alert:', error);
+    res.status(500).json({ success: false, error: 'Error al descartar la alerta.' });
   }
 });
 
@@ -689,6 +831,190 @@ app.put('/api/tasks/:id/toggle', async (req, res) => {
   } catch (error) {
     console.error('Error toggling task:', error);
     res.status(500).json({ success: false, error: 'Error al actualizar tarea.' });
+  }
+});
+
+// ─── ROUTE TEMPLATES ───────────────────────────────────────────────────────
+
+// GET /api/route-templates
+app.get('/api/route-templates', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM route_templates ORDER BY name ASC');
+    const templates = result.rows.map(t => ({
+      id: t.id,
+      name: t.name,
+      origin: t.origin,
+      destination: t.destination,
+      totalDistance: parseFloat(t.total_distance),
+      estimatedTime: t.estimated_time,
+      stops: t.stops_json ? JSON.parse(t.stops_json) : [],
+      taskDescription: t.task_description
+    }));
+    res.json({ success: true, templates });
+  } catch (error) {
+    console.error('Error fetching route templates:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener plantillas.' });
+  }
+});
+
+// POST /api/route-templates
+app.post('/api/route-templates', async (req, res) => {
+  const { name, origin, destination, totalDistance, estimatedTime, stops, taskDescription } = req.body;
+  if (!name || !origin || !destination || !totalDistance) {
+    return res.status(400).json({ success: false, error: 'Nombre, origen, destino y distancia son requeridos.' });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO route_templates (name, origin, destination, total_distance, estimated_time, stops_json, task_description)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name, origin, destination, parseFloat(totalDistance), estimatedTime || '', JSON.stringify(stops || []), taskDescription || '']
+    );
+    const t = result.rows[0];
+    res.status(201).json({ success: true, template: {
+      id: t.id, name: t.name, origin: t.origin, destination: t.destination,
+      totalDistance: parseFloat(t.total_distance), estimatedTime: t.estimated_time,
+      stops: t.stops_json ? JSON.parse(t.stops_json) : [], taskDescription: t.task_description
+    }});
+  } catch (error) {
+    console.error('Error creating route template:', error);
+    res.status(500).json({ success: false, error: 'Error al crear plantilla.' });
+  }
+});
+
+// PUT /api/route-templates/:id
+app.put('/api/route-templates/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, origin, destination, totalDistance, estimatedTime, stops, taskDescription } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE route_templates SET name=$1, origin=$2, destination=$3, total_distance=$4, estimated_time=$5, stops_json=$6, task_description=$7
+       WHERE id=$8 RETURNING *`,
+      [name, origin, destination, parseFloat(totalDistance), estimatedTime || '', JSON.stringify(stops || []), taskDescription || '', parseInt(id,10)]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Plantilla no encontrada.' });
+    const t = result.rows[0];
+    res.json({ success: true, template: {
+      id: t.id, name: t.name, origin: t.origin, destination: t.destination,
+      totalDistance: parseFloat(t.total_distance), estimatedTime: t.estimated_time,
+      stops: t.stops_json ? JSON.parse(t.stops_json) : [], taskDescription: t.task_description
+    }});
+  } catch (error) {
+    console.error('Error updating route template:', error);
+    res.status(500).json({ success: false, error: 'Error al actualizar plantilla.' });
+  }
+});
+
+// DELETE /api/route-templates/:id
+app.delete('/api/route-templates/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM route_templates WHERE id=$1 RETURNING id', [parseInt(id,10)]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Plantilla no encontrada.' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting route template:', error);
+    res.status(500).json({ success: false, error: 'Error al eliminar plantilla.' });
+  }
+});
+
+// ─── VEHICLE HISTORY & MAINTENANCES ─────────────────────────────────────────
+
+// GET /api/vehicles/:id/history
+app.get('/api/vehicles/:id/history', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Completed trips for this vehicle
+    const tripsRes = await pool.query(`
+      SELECT t.id, TO_CHAR(t.trip_date,'YYYY-MM-DD') AS "tripDate", t.status,
+             t.total_distance AS "totalDistance", t.expenses_amount AS "expensesAmount",
+             t.expenses_detail AS "expensesDetail", u.name AS "driverName"
+      FROM trips t
+      LEFT JOIN users u ON t.driver_id = u.id
+      WHERE t.vehicle_id = $1
+      ORDER BY t.trip_date DESC, t.id DESC
+    `, [id]);
+
+    // Maintenances for this vehicle
+    const maintRes = await pool.query(`
+      SELECT id, TO_CHAR(maintenance_date,'YYYY-MM-DD') AS "maintenanceDate",
+             maintenance_type AS "maintenanceType", cost, parts_used AS "partsUsed",
+             workshop, notes
+      FROM maintenances
+      WHERE vehicle_id = $1
+      ORDER BY maintenance_date DESC
+    `, [id]);
+
+    // Alerts for this vehicle
+    const alertsRes = await pool.query(`
+      SELECT id, title, description, severity, status
+      FROM alerts WHERE vehicle_id = $1 ORDER BY id DESC
+    `, [id]);
+
+    res.json({
+      success: true,
+      trips: tripsRes.rows.map(t => ({
+        ...t,
+        totalDistance: parseFloat(t.totalDistance || 0),
+        expensesAmount: parseFloat(t.expensesAmount || 0)
+      })),
+      maintenances: maintRes.rows.map(m => ({ ...m, cost: parseFloat(m.cost || 0) })),
+      alerts: alertsRes.rows
+    });
+  } catch (error) {
+    console.error('Error fetching vehicle history:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener historial del vehículo.' });
+  }
+});
+
+// GET /api/vehicles/:id/maintenances
+app.get('/api/vehicles/:id/maintenances', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT id, TO_CHAR(maintenance_date,'YYYY-MM-DD') AS "maintenanceDate",
+             maintenance_type AS "maintenanceType", cost, parts_used AS "partsUsed",
+             workshop, notes
+      FROM maintenances WHERE vehicle_id=$1 ORDER BY maintenance_date DESC
+    `, [id]);
+    res.json({ success: true, maintenances: result.rows.map(m => ({ ...m, cost: parseFloat(m.cost || 0) })) });
+  } catch (error) {
+    console.error('Error fetching maintenances:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener mantenimientos.' });
+  }
+});
+
+// POST /api/vehicles/:id/maintenances
+app.post('/api/vehicles/:id/maintenances', async (req, res) => {
+  const { id } = req.params;
+  const { maintenanceDate, maintenanceType, cost, partsUsed, workshop, notes } = req.body;
+  if (!maintenanceType) {
+    return res.status(400).json({ success: false, error: 'El tipo de mantenimiento es requerido.' });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO maintenances (vehicle_id, maintenance_date, maintenance_type, cost, parts_used, workshop, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, TO_CHAR(maintenance_date,'YYYY-MM-DD') AS "maintenanceDate",
+                 maintenance_type AS "maintenanceType", cost, parts_used AS "partsUsed", workshop, notes`,
+      [id, maintenanceDate || new Date(), maintenanceType, parseFloat(cost || 0), partsUsed || '', workshop || '', notes || '']
+    );
+    const m = result.rows[0];
+    res.status(201).json({ success: true, maintenance: { ...m, cost: parseFloat(m.cost || 0) } });
+  } catch (error) {
+    console.error('Error creating maintenance:', error);
+    res.status(500).json({ success: false, error: 'Error al registrar mantenimiento.' });
+  }
+});
+
+// DELETE /api/vehicles/:id/maintenances/:maintId
+app.delete('/api/vehicles/:id/maintenances/:maintId', async (req, res) => {
+  const { maintId } = req.params;
+  try {
+    await pool.query('DELETE FROM maintenances WHERE id=$1', [parseInt(maintId,10)]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting maintenance:', error);
+    res.status(500).json({ success: false, error: 'Error al eliminar mantenimiento.' });
   }
 });
 
