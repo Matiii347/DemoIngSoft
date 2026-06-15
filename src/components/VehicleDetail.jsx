@@ -1,8 +1,29 @@
 import React from 'react';
 
 export default function VehicleDetail({ vehicleId, vehicles, setView }) {
+  if (!vehicles || vehicles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 animate-fadeIn min-h-[50vh]">
+        <span className="material-symbols-outlined text-[48px] text-primary animate-spin mb-md">sync</span>
+        <p className="font-body-md text-on-surface-variant">Cargando detalles del camión...</p>
+      </div>
+    );
+  }
+
   // Find the selected vehicle, or use VM-042 as default
   const vehicle = vehicles.find(v => v.id === vehicleId) || vehicles[0];
+
+  if (!vehicle) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 animate-fadeIn min-h-[50vh]">
+        <span className="material-symbols-outlined text-[48px] text-error mb-md">local_shipping</span>
+        <p className="font-body-md text-on-surface-variant">Vehículo no encontrado.</p>
+        <button onClick={() => setView('flota')} className="mt-md px-4 py-2 bg-primary text-surface rounded-xl font-bold">
+          Volver a la flota
+        </button>
+      </div>
+    );
+  }
 
   const getUrgencyColor = (status) => {
     switch (status) {

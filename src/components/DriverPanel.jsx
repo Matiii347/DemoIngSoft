@@ -1,12 +1,30 @@
 import React from 'react';
 
 export default function DriverPanel({ vehicleId, vehicles, setView }) {
+  if (!vehicles || vehicles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 animate-fadeIn min-h-[50vh]">
+        <span className="material-symbols-outlined text-[48px] text-primary animate-spin mb-md">sync</span>
+        <p className="font-body-md text-on-surface-variant">Cargando datos del vehículo...</p>
+      </div>
+    );
+  }
+
   // Find vehicle corresponding to the driver (typically VM-018 or VM-042)
   const vehicle = vehicles.find(v => v.id === vehicleId) || vehicles[0];
 
+  if (!vehicle) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 animate-fadeIn min-h-[50vh]">
+        <span className="material-symbols-outlined text-[48px] text-error mb-md">local_shipping</span>
+        <p className="font-body-md text-on-surface-variant">No se encontró ningún vehículo asignado.</p>
+      </div>
+    );
+  }
+
   // Battery indicator dashoffset calculation (radius = 45, perimeter = 2 * PI * 45 = 282.7)
   const perimeter = 282.7;
-  const strokeDashoffset = perimeter - (perimeter * vehicle.battery) / 100;
+  const strokeDashoffset = perimeter - (perimeter * (vehicle.battery || 0)) / 100;
 
   const cargoWeight = vehicle.id === 'VM-018' ? 18.5 : vehicle.id === 'VM-099' ? 10.8 : 3.8;
   const cargoMax = vehicle.id === 'VM-018' ? 24.0 : vehicle.id === 'VM-099' ? 12.0 : 4.5;

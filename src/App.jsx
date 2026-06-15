@@ -272,15 +272,16 @@ export default function App() {
       }
     } else {
       // Driver perspective
+      const driverVehicleId = vehicles.find(v => v.driverId === currentUser?.id)?.id || 'VM-018';
       switch (view) {
         case 'dashboard':
-          return <DriverPanel vehicleId="VM-018" vehicles={vehicles} setView={setView} />;
+          return <DriverPanel vehicleId={driverVehicleId} vehicles={vehicles} setView={setView} />;
         case 'rutas':
           return <DriverRoute />;
         case 'alertas':
           return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:
-          return <DriverPanel vehicleId="VM-018" vehicles={vehicles} setView={setView} />;
+          return <DriverPanel vehicleId={driverVehicleId} vehicles={vehicles} setView={setView} />;
       }
     }
   };
