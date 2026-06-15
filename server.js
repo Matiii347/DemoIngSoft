@@ -106,6 +106,147 @@ pool.connect(async (err, client, release) => {
       } catch (kmErr) {
         console.error('Error migrating vehicles table (kilometers):', kmErr);
       }
+
+      // 6. Update role constraint on users table to include 'taller' and 'administrativo'
+      try {
+        await client.query(`
+          ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+          ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('operador', 'conductor', 'taller', 'administrativo'));
+        `);
+        console.log('Successfully updated users_role_check constraint to include taller and administrativo.');
+      } catch (roleErr) {
+        console.error('Error updating role check constraint:', roleErr);
+      }
+
+      // 7. Bulk seed users if total < 20 (means we only have the initial 4 demo users)
+      try {
+        const userCount = await client.query('SELECT COUNT(*) FROM users');
+        const count = parseInt(userCount.rows[0].count, 10);
+        if (count < 20) {
+          console.log(`Only ${count} users found. Seeding all 120 users...`);
+          await client.query(`
+            INSERT INTO users (username, password, name, role, avatar, license_status) VALUES
+            ('op_rodriguez','op123','Rodrigo Rodríguez','operador',NULL,'Vigente'),
+            ('op_fernandez','op123','Marcela Fernández','operador',NULL,'Vigente'),
+            ('op_suarez','op123','Esteban Suárez','operador',NULL,'Vigente'),
+            ('op_luna','op123','Patricia Luna','operador',NULL,'Vigente'),
+            ('op_torres','op123','Gustavo Torres','operador',NULL,'Vigente'),
+            ('op_vega','op123','Sandra Vega','operador',NULL,'Vigente'),
+            ('op_molina','op123','Diego Molina','operador',NULL,'Vigente'),
+            ('op_reyes','op123','Valeria Reyes','operador',NULL,'Vigente'),
+            ('op_peralta','op123','Nicolás Peralta','operador',NULL,'Vigente'),
+            ('ch_martinez','ch123','Roberto Martínez','conductor',NULL,'Vigente'),
+            ('ch_lopez','ch123','María López','conductor',NULL,'Vigente'),
+            ('ch_gonzalez','ch123','Pedro González','conductor',NULL,'Vigente'),
+            ('ch_herrera','ch123','Claudia Herrera','conductor',NULL,'Vigente'),
+            ('ch_romero','ch123','Fabián Romero','conductor',NULL,'Vigente'),
+            ('ch_jimenez','ch123','Laura Jiménez','conductor',NULL,'Renovación Requerida'),
+            ('ch_moreno','ch123','Sergio Moreno','conductor',NULL,'Vigente'),
+            ('ch_nunez','ch123','Alejandra Núñez','conductor',NULL,'Vigente'),
+            ('ch_alvarez','ch123','Javier Álvarez','conductor',NULL,'Vigente'),
+            ('ch_ruiz','ch123','Mónica Ruiz','conductor',NULL,'Vigente'),
+            ('ch_diaz','ch123','Hernán Díaz','conductor',NULL,'Vigente'),
+            ('ch_perez','ch123','Silvina Pérez','conductor',NULL,'Vigente'),
+            ('ch_sanchez','ch123','Ariel Sánchez','conductor',NULL,'Vigente'),
+            ('ch_castro','ch123','Graciela Castro','conductor',NULL,'Vencida'),
+            ('ch_ortega','ch123','Emilio Ortega','conductor',NULL,'Vigente'),
+            ('ch_ramos','ch123','Natalia Ramos','conductor',NULL,'Vigente'),
+            ('ch_vargas','ch123','Omar Vargas','conductor',NULL,'Vigente'),
+            ('ch_guerrero','ch123','Stella Guerrero','conductor',NULL,'Vigente'),
+            ('ch_navarro','ch123','Claudio Navarro','conductor',NULL,'Vigente'),
+            ('ch_medina','ch123','Rosa Medina','conductor',NULL,'Vigente'),
+            ('ch_aguilar','ch123','Daniel Aguilar','conductor',NULL,'Vigente'),
+            ('ch_rios','ch123','Verónica Ríos','conductor',NULL,'Vigente'),
+            ('ch_ponce','ch123','Cristian Ponce','conductor',NULL,'Vigente'),
+            ('ch_cabrera','ch123','Analía Cabrera','conductor',NULL,'Vigente'),
+            ('ch_fuentes','ch123','Marcelo Fuentes','conductor',NULL,'Vigente'),
+            ('ch_delgado','ch123','Viviana Delgado','conductor',NULL,'Vigente'),
+            ('ch_moran','ch123','Eduardo Morán','conductor',NULL,'Renovación Requerida'),
+            ('ch_sosa','ch123','Lorena Sosa','conductor',NULL,'Vigente'),
+            ('ch_ibarra','ch123','Matías Ibarra','conductor',NULL,'Vigente'),
+            ('ch_bravo','ch123','Susana Bravo','conductor',NULL,'Vigente'),
+            ('ch_lara','ch123','Gonzalo Lara','conductor',NULL,'Vigente'),
+            ('ch_urena','ch123','Patricia Ureña','conductor',NULL,'Vigente'),
+            ('ch_barrera','ch123','Rodrigo Barrera','conductor',NULL,'Vigente'),
+            ('ch_acosta','ch123','Beatriz Acosta','conductor',NULL,'Vigente'),
+            ('ch_espinoza','ch123','Rubén Espinoza','conductor',NULL,'Vigente'),
+            ('ch_pena','ch123','Cecilia Peña','conductor',NULL,'Vigente'),
+            ('ch_contreras','ch123','Germán Contreras','conductor',NULL,'Vigente'),
+            ('ch_zamora','ch123','Andrea Zamora','conductor',NULL,'Vigente'),
+            ('ch_tapia','ch123','Roberto Tapia','conductor',NULL,'Vigente'),
+            ('ch_miranda','ch123','Florencia Miranda','conductor',NULL,'Vigente'),
+            ('ch_bermudez','ch123','Pablo Bermúdez','conductor',NULL,'Vigente'),
+            ('ch_nieto','ch123','Adriana Nieto','conductor',NULL,'Vigente'),
+            ('ch_serrano','ch123','Walter Serrano','conductor',NULL,'Vigente'),
+            ('ch_sandoval','ch123','Carolina Sandoval','conductor',NULL,'Vigente'),
+            ('ch_montoya','ch123','Eugenio Montoya','conductor',NULL,'Vigente'),
+            ('ch_vega2','ch123','Miriam Vega','conductor',NULL,'Vigente'),
+            ('ch_mendoza2','ch123','Diego Mendoza','conductor',NULL,'Vigente'),
+            ('ch_duarte','ch123','Alejandro Duarte','conductor',NULL,'Vigente'),
+            ('ch_vera','ch123','Silvana Vera','conductor',NULL,'Vigente'),
+            ('ch_campos','ch123','Marcos Campos','conductor',NULL,'Vigente'),
+            ('ch_paredes','ch123','Daniela Paredes','conductor',NULL,'Vigente'),
+            ('ch_molina2','ch123','Gustavo Molina','conductor',NULL,'Vigente'),
+            ('ch_arce','ch123','Nora Arce','conductor',NULL,'Vigente'),
+            ('ch_pineda','ch123','Francisco Pineda','conductor',NULL,'Vigente'),
+            ('ch_rangel','ch123','Liliana Rangel','conductor',NULL,'Vigente'),
+            ('ch_santiago','ch123','Héctor Santiago','conductor',NULL,'Vigente'),
+            ('ch_arrieta','ch123','Nadia Arrieta','conductor',NULL,'Vigente'),
+            ('ch_blanco','ch123','Osvaldo Blanco','conductor',NULL,'Vigente'),
+            ('ch_coronel','ch123','Flavia Coronel','conductor',NULL,'Vigente'),
+            ('ch_rojas','ch123','Ignacio Rojas','conductor',NULL,'Vigente'),
+            ('ch_paz','ch123','Elisa Paz','conductor',NULL,'Vencida'),
+            ('ch_ocampo','ch123','Ramiro Ocampo','conductor',NULL,'Vigente'),
+            ('ch_aguirre','ch123','Karina Aguirre','conductor',NULL,'Vigente'),
+            ('ch_gaitan','ch123','Mauricio Gaitán','conductor',NULL,'Vigente'),
+            ('ch_olvera','ch123','Natalia Olvera','conductor',NULL,'Vigente'),
+            ('ch_reina','ch123','Simón Reina','conductor',NULL,'Vigente'),
+            ('ch_vergara','ch123','Paola Vergara','conductor',NULL,'Vigente'),
+            ('ch_escobar','ch123','Jonatan Escobar','conductor',NULL,'Vigente'),
+            ('ch_tovar','ch123','Mercedes Tovar','conductor',NULL,'Vigente'),
+            ('ch_montes','ch123','César Montes','conductor',NULL,'Vigente'),
+            ('ch_quispe','ch123','Irene Quispe','conductor',NULL,'Vigente'),
+            ('ch_naranjo','ch123','Maximiliano Naranjo','conductor',NULL,'Vigente'),
+            ('ch_zapata','ch123','Lorenza Zapata','conductor',NULL,'Vigente'),
+            ('ch_cano','ch123','Leandro Cano','conductor',NULL,'Vigente'),
+            ('ch_rendon','ch123','Amanda Rendón','conductor',NULL,'Vigente'),
+            ('taller_jefe','taller123','Jorge Villanueva','taller',NULL,'Vigente'),
+            ('taller_sub','taller123','Raúl Esquivel','taller',NULL,'Vigente'),
+            ('taller_mec1','taller123','Fernando Ríos','taller',NULL,'Vigente'),
+            ('taller_mec2','taller123','Leonardo Bustos','taller',NULL,'Vigente'),
+            ('taller_mec3','taller123','Alfredo Soria','taller',NULL,'Vigente'),
+            ('taller_mec4','taller123','Ramón Orozco','taller',NULL,'Vigente'),
+            ('taller_mec5','taller123','Ignacio Palacios','taller',NULL,'Vigente'),
+            ('taller_mec6','taller123','Tomás Leiva','taller',NULL,'Vigente'),
+            ('taller_mec7','taller123','Enrique Quiroga','taller',NULL,'Vigente'),
+            ('taller_mec8','taller123','Horacio Medrano','taller',NULL,'Vigente'),
+            ('taller_elec1','taller123','Sebastián Correia','taller',NULL,'Vigente'),
+            ('taller_elec2','taller123','Felipe Barrionuevo','taller',NULL,'Vigente'),
+            ('taller_elec3','taller123','Valentín Gómez','taller',NULL,'Vigente'),
+            ('taller_neu1','taller123','Alberto Pacheco','taller',NULL,'Vigente'),
+            ('taller_neu2','taller123','Luciano Vidal','taller',NULL,'Vigente'),
+            ('taller_neu3','taller123','Edgardo Cuevas','taller',NULL,'Vigente'),
+            ('taller_lav1','taller123','Nicolás Heredia','taller',NULL,'Vigente'),
+            ('taller_lav2','taller123','Erika Molano','taller',NULL,'Vigente'),
+            ('taller_coord1','taller123','Patricia Serpa','taller',NULL,'Vigente'),
+            ('taller_coord2','taller123','Mario Quintero','taller',NULL,'Vigente'),
+            ('admin_rrhh','admin123','Susana Delgado','administrativo',NULL,'Vigente'),
+            ('admin_contab','admin123','Marcelo Prieto','administrativo',NULL,'Vigente'),
+            ('admin_factura','admin123','Valeria Ojeda','administrativo',NULL,'Vigente'),
+            ('admin_compras','admin123','Daniel Estrada','administrativo',NULL,'Vigente'),
+            ('admin_legales','admin123','Cecilia Funes','administrativo',NULL,'Vigente'),
+            ('admin_tesor','admin123','Gustavo Núñez','administrativo',NULL,'Vigente'),
+            ('admin_seg','admin123','Estela Carrizo','administrativo',NULL,'Vigente'),
+            ('admin_it','admin123','Rodrigo Páez','administrativo',NULL,'Vigente'),
+            ('admin_gerencia','admin123','Mirna Olivares','administrativo',NULL,'Vigente'),
+            ('admin_soporte','admin123','Bruno Salinas','administrativo',NULL,'Vigente')
+            ON CONFLICT (username) DO NOTHING;
+          `);
+          console.log('Bulk seed of 120 users completed.');
+        }
+      } catch (seedErr) {
+        console.error('Error during bulk user seed:', seedErr);
+      }
     }
 
     // Check if 'system_settings' table exists
@@ -219,7 +360,89 @@ app.put('/api/settings', async (req, res) => {
   }
 });
 
-// GET /api/drivers
+// GET /api/users — lista todos los usuarios (opcionalmente filtra por role)
+app.get('/api/users', async (req, res) => {
+  const { role } = req.query;
+  try {
+    let query = 'SELECT id, username, name, password, role, avatar, license_status AS "licenseStatus" FROM users';
+    const params = [];
+    if (role) {
+      query += ' WHERE role = $1';
+      params.push(role);
+    }
+    query += ' ORDER BY role ASC, name ASC';
+    const result = await pool.query(query, params);
+    res.json({ success: true, users: result.rows });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener usuarios.' });
+  }
+});
+
+// POST /api/users — crea cualquier tipo de usuario
+app.post('/api/users', async (req, res) => {
+  const { name, username, password, role, licenseStatus, avatar } = req.body;
+  const validRoles = ['operador', 'conductor', 'taller', 'administrativo'];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ success: false, error: 'Rol no válido.' });
+  }
+  try {
+    const result = await pool.query(
+      'INSERT INTO users (name, username, password, role, license_status, avatar) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, name, password, role, avatar, license_status AS "licenseStatus"',
+      [name, username, password, role, licenseStatus || 'Vigente', avatar || null]
+    );
+    res.status(201).json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, error: 'El nombre de usuario ya existe.' });
+    }
+    res.status(500).json({ success: false, error: 'Error al crear usuario.' });
+  }
+});
+
+// PUT /api/users/:id — edita cualquier usuario
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, username, password, role, licenseStatus, avatar } = req.body;
+  const validRoles = ['operador', 'conductor', 'taller', 'administrativo'];
+  if (role && !validRoles.includes(role)) {
+    return res.status(400).json({ success: false, error: 'Rol no válido.' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE users SET name=$1, username=$2, password=$3, role=$4, license_status=$5, avatar=$6 WHERE id=$7 RETURNING id, username, name, password, role, avatar, license_status AS "licenseStatus"',
+      [name, username, password, role, licenseStatus || 'Vigente', avatar || null, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado.' });
+    }
+    res.json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, error: 'El nombre de usuario ya existe.' });
+    }
+    res.status(500).json({ success: false, error: 'Error al actualizar usuario.' });
+  }
+});
+
+// DELETE /api/users/:id — elimina cualquier usuario
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado.' });
+    }
+    res.json({ success: true, id: parseInt(id, 10) });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ success: false, error: 'Error al eliminar usuario.' });
+  }
+});
+
+// GET /api/drivers — alias que mantiene compatibilidad retroactiva
 app.get('/api/drivers', async (req, res) => {
   try {
     const result = await pool.query("SELECT id, username, name, password, role, avatar, license_status AS \"licenseStatus\" FROM users WHERE role = 'conductor' ORDER BY id ASC");
