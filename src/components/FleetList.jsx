@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
 
-export default function FleetList({ vehicles, setView, setSelectedVehicleId }) {
+export default function FleetList({ vehicles, setVehicles, drivers, setView, setSelectedVehicleId }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
+  const [showModal, setShowModal] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null); // null when creating
+  
+  // Form states
+  const [vehicleId, setVehicleId] = useState('');
+  const [model, setModel] = useState('');
+  const [status, setStatus] = useState('En Ruta');
+  const [battery, setBattery] = useState(100);
+  const [driverId, setDriverId] = useState('');
+  const [cargoLimit, setCargoLimit] = useState(4.5);
+  const [currentCargo, setCurrentCargo] = useState(0.0);
+  const [rangeLeft, setRangeLeft] = useState(400);
+  const [currentLocation, setCurrentLocation] = useState('');
+  const [vtvExpiration, setVtvExpiration] = useState('');
+  const [error, setError] = useState('');
 
   // Available filters
   const filters = ['Todos', 'En Ruta', 'Cargando', 'Crítico'];
@@ -59,6 +74,117 @@ export default function FleetList({ vehicles, setView, setSelectedVehicleId }) {
     return 'text-primary';
   };
 
+  // Handle open modal for create
+  const handleOpenCreate = () => {
+    setEditingVehicle(null);
+    setVehicleId('');
+    setModel('');
+    setStatus('En Ruta');
+    setBattery(100);
+    setDriverId('');
+    setCargoLimit(4.5);
+    setCurrentCargo(0.0);
+    setRangeLeft(400);
+    setCurrentLocation('');
+    setVtvExpiration('');
+    setError('');
+    setShowModal(true);
+  };
+
+  // Handle open modal for edit
+  const handleOpenEdit = (vehicle) => {
+    setEditingVehicle(vehicle);
+    setVehicleId(vehicle.id);
+    setModel(vehicle.model);
+    setStatus(vehicle.status);
+    setBattery(vehicle.battery);
+    setDriverId(vehicle.driverId || '');
+    setCargoLimit(vehicle.cargoLimit);
+    setCurrentCargo(vehicle.currentCargo);
+    setRangeLeft(vehicle.rangeLeft);
+    setCurrentLocation(vehicle.currentLocation || '');
+    setVtvExpiration(vehicle.vtvExpiration || '');
+    setError('');
+    setShowModal(true);
+  };
+
+  // Handle delete
+  const handleDelete = async (id) => {
+    if (confirm(`¿Estás seguro de que deseas eliminar el vehículo ${id}?`)) {
+      try {
+        const response = await fetch(`/api/vehicles/${id}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (data.success) {
+          setVehicles(vehicles.filter(v => v.id !== id));
+        } else {
+          alert(data.error || 'Error al eliminar el vehículo.');
+        }
+      } catch (err) {
+        console.error('Error deleting vehicle:', err);
+        alert('Error de conexión al eliminar el vehículo.');
+      }
+    }
+  };
+
+  // Handle submit (save create/edit)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!vehicleId.trim() || !model.trim()) {
+      setError('Por favor, completa los campos requeridos (ID de Vehículo y Modelo).');
+      return;
+    }
+
+    const payload = {
+      id: vehicleId.trim().toUpperCase(),
+      model: model.trim(),
+      status,
+      battery: parseInt(battery, 10),
+      driverId: driverId ? parseInt(driverId, 10) : null,
+      cargoLimit: parseFloat(cargoLimit),
+      currentCargo: parseFloat(currentCargo),
+      rangeLeft: parseInt(rangeLeft, 10),
+      currentLocation: currentLocation.trim(),
+      vtvExpiration: vtvExpiration || null
+    };
+
+    try {
+      if (editingVehicle) {
+        // Edit mode
+        const response = await fetch(`/api/vehicles/${editingVehicle.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setVehicles(vehicles.map(v => v.id === editingVehicle.id ? data.vehicle : v));
+          setShowModal(false);
+        } else {
+          setError(data.error || 'Error al actualizar el vehículo.');
+        }
+      } else {
+        // Create mode
+        const response = await fetch('/api/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setVehicles([...vehicles, data.vehicle]);
+          setShowModal(false);
+        } else {
+          setError(data.error || 'Error al registrar el vehículo.');
+        }
+      }
+    } catch (err) {
+      console.error('Error saving vehicle:', err);
+      setError('Error de conexión con el servidor.');
+    }
+  };
+
   return (
     <div className="flex flex-col gap-lg animate-fadeIn pb-12">
       {/* Search Bar */}
@@ -112,9 +238,28 @@ export default function FleetList({ vehicles, setView, setSelectedVehicleId }) {
             >
               <div className="flex justify-between items-start">
                 <div className="flex flex-col">
-                  <span className={`font-headline-sm text-headline-sm font-bold tracking-wider ${vehicle.status === 'Crítico' ? 'text-error' : 'text-primary'}`}>
-                    {vehicle.id}
-                  </span>
+                  <div className="flex items-center gap-sm">
+                    <span className={`font-headline-sm text-headline-sm font-bold tracking-wider ${vehicle.status === 'Crítico' ? 'text-error' : 'text-primary'}`}>
+                      {vehicle.id}
+                    </span>
+                    {/* Action buttons inside card */}
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(vehicle); }}
+                        className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-surface-bright flex items-center justify-center text-primary transition-colors focus:outline-none"
+                        title="Editar vehículo"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">edit</span>
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(vehicle.id); }}
+                        className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-error-container/20 flex items-center justify-center text-error transition-colors focus:outline-none"
+                        title="Eliminar vehículo"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                      </button>
+                    </div>
+                  </div>
                   <span className="font-body-sm text-body-sm text-on-surface-variant">{vehicle.model}</span>
                 </div>
                 <div className={`px-3 py-1 rounded-full flex items-center gap-xs ${getStatusStyle(vehicle.status)}`}>
@@ -175,16 +320,173 @@ export default function FleetList({ vehicles, setView, setSelectedVehicleId }) {
         )}
       </div>
 
-      {/* Floating Action Button (Nuevo Reparto) */}
+      {/* Floating Action Button (Agregar Camión) */}
       <button 
-        onClick={() => alert('Función "Nuevo Reparto": Creación de una nueva orden de despacho en el sistema de logística.')}
-        className="fixed bottom-24 right-4 md:bottom-8 md:right-8 bg-primary text-on-primary p-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:bg-primary-fixed hover:scale-105 transition-all active:scale-95 z-40 group focus:outline-none"
+        onClick={handleOpenCreate}
+        className="fixed bottom-24 right-4 bg-primary text-on-primary p-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:bg-primary/90 hover:scale-105 transition-all active:scale-95 z-40 focus:outline-none"
+        id="btn-add-vehicle"
       >
         <span className="material-symbols-outlined font-bold" style={{ fontVariationSettings: "'FILL' 1" }}>add_box</span>
-        <span className="font-label-md text-label-md pr-1 hidden group-hover:block transition-all max-w-0 group-hover:max-w-[200px] overflow-hidden whitespace-nowrap">
-          Nuevo Reparto
+        <span className="font-label-md text-label-md pr-1">
+          Agregar Vehículo
         </span>
       </button>
+
+      {/* Modal Overlay / Dialog for ABM Flota */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end justify-center max-w-md mx-auto">
+          <div className="bg-surface-container-high rounded-t-2xl w-full p-lg border-t border-surface-variant/40 shadow-2xl flex flex-col gap-md max-h-[85vh] overflow-y-auto animate-slideUp">
+            <div className="flex justify-between items-center border-b border-surface-variant/20 pb-sm">
+              <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                {editingVehicle ? 'Editar Vehículo' : 'Registrar Vehículo'}
+              </h2>
+              <button 
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="text-on-surface-variant hover:text-on-surface focus:outline-none"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-md">
+              {error && (
+                <div className="bg-error/15 border border-error/30 text-error rounded-xl p-sm text-xs font-semibold flex items-center gap-xs animate-shake">
+                  <span className="material-symbols-outlined text-[18px]">error</span>
+                  {error}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Identificador de Unidad *</label>
+                <input 
+                  type="text" 
+                  name="id"
+                  placeholder="Ej: VM-042"
+                  value={vehicleId}
+                  onChange={(e) => { setVehicleId(e.target.value); setError(''); }}
+                  disabled={!!editingVehicle}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md uppercase disabled:opacity-60 disabled:cursor-not-allowed"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Modelo *</label>
+                <input 
+                  type="text" 
+                  name="model"
+                  placeholder="Ej: e-Truck Pro 2024"
+                  value={model}
+                  onChange={(e) => { setModel(e.target.value); setError(''); }}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-sm">
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Estado</label>
+                  <select 
+                    name="status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  >
+                    <option value="En Ruta">En Ruta</option>
+                    <option value="Cargando">Cargando</option>
+                    <option value="Crítico">Crítico</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Batería (%)</label>
+                  <input 
+                    type="number" 
+                    name="battery"
+                    min="0"
+                    max="100"
+                    value={battery}
+                    onChange={(e) => setBattery(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Chofer Asignado</label>
+                <select 
+                  name="driverId"
+                  value={driverId}
+                  onChange={(e) => setDriverId(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                >
+                  <option value="">Sin Asignar</option>
+                  {drivers.map(d => (
+                    <option key={d.id} value={d.id}>{d.name} (@{d.username})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-sm">
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Límite Carga (t)</label>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    name="cargoLimit"
+                    value={cargoLimit}
+                    onChange={(e) => setCargoLimit(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-xs">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Autonomía (km)</label>
+                  <input 
+                    type="number" 
+                    name="rangeLeft"
+                    value={rangeLeft}
+                    onChange={(e) => setRangeLeft(e.target.value)}
+                    className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Ubicación Actual</label>
+                <input 
+                  type="text" 
+                  name="currentLocation"
+                  placeholder="Ej: CD Norte, Buenos Aires"
+                  value={currentLocation}
+                  onChange={(e) => setCurrentLocation(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md"
+                />
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Vencimiento de VTV</label>
+                <input 
+                  type="date" 
+                  name="vtvExpiration"
+                  value={vtvExpiration}
+                  onChange={(e) => setVtvExpiration(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2.5 px-4 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md text-on-surface"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/95 text-surface font-label-md text-label-md font-bold py-3 rounded-xl mt-sm flex items-center justify-center gap-xs shadow-lg shadow-green-950/20 active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[20px]">save</span>
+                Guardar Vehículo
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

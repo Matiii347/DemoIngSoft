@@ -152,79 +152,39 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
 
-  // Dynamic drivers state
-  const [drivers, setDrivers] = useState([
-    { 
-      id: 1, 
-      username: 'chofer', 
-      name: 'Carlos Mendoza', 
-      password: 'chofer123',
-      role: 'conductor', 
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
-      licenseStatus: 'Renovación Requerida' 
-    },
-    { 
-      id: 2, 
-      username: 'ana', 
-      name: 'Ana Silva', 
-      password: 'ana123',
-      role: 'conductor', 
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
-      licenseStatus: 'Vigente' 
-    },
-    { 
-      id: 3, 
-      username: 'luis', 
-      name: 'Luis García', 
-      password: 'luis123',
-      role: 'conductor', 
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
-      licenseStatus: 'Vigente' 
-    }
-  ]);
+  // Dynamic state from database
+  const [drivers, setDrivers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [settings, setSettings] = useState({ alert_red: 15, alert_yellow: 30, alert_green: 60 });
 
-  // Initial mock vehicles data
-  const vehicles = [
-    { 
-      id: 'VM-042', 
-      model: 'e-Truck Pro 2024', 
-      status: 'En Ruta', 
-      battery: 85, 
-      driver: 'Carlos Mendoza',
-      driverImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150'
-    },
-    { 
-      id: 'VM-018', 
-      model: 'e-Truck Delivery', 
-      status: 'Cargando', 
-      battery: 42, 
-      driver: 'Carlos Mendoza', // Assigned for details view fallback
-      driverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150'
-    },
-    { 
-      id: 'VM-099', 
-      model: 'e-Truck Heavy Duty', 
-      status: 'Crítico', 
-      battery: 12, 
-      driver: 'Ana Silva',
-      driverImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
-    },
-    { 
-      id: 'VM-055', 
-      model: 'e-Truck Pro', 
-      status: 'En Ruta', 
-      battery: 92, 
-      driver: 'Luis García',
-      driverImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150'
-    }
-  ];
+  // Fetch data on session start
+  React.useEffect(() => {
+    if (!currentUser) return;
+    
+    const fetchData = async () => {
+      try {
+        const dRes = await fetch('/api/drivers');
+        const dData = await dRes.json();
+        if (dData.success) setDrivers(dData.drivers);
 
-  // System alerts
-  const alerts = [
-    { id: 'vtv', title: 'VTV Vencida', desc: 'VM-042', severity: 'error', text: 'Expiró hace 2 días' },
-    { id: 'motores', title: 'Mantenimiento de Motores', desc: 'VM-018', severity: 'warning', text: 'En 500 km' },
-    { id: 'neumaticos', title: 'Revisión de Neumáticos', desc: 'VM-105', severity: 'info', text: 'Presión baja' }
-  ];
+        const vRes = await fetch('/api/vehicles');
+        const vData = await vRes.json();
+        if (vData.success) {
+          setVehicles(vData.vehicles);
+          if (vData.vehicles.length > 0 && !vData.vehicles.some(v => v.id === selectedVehicleId)) {
+            setSelectedVehicleId(vData.vehicles[0].id);
+          }
+        }
+
+        const sRes = await fetch('/api/settings');
+        const sData = await sRes.json();
+        if (sData.success) setSettings(sData.settings);
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    };
+    fetchData();
+  }, [currentUser]);
 
   // Login handler
   const handleLogin = (user) => {
@@ -240,6 +200,59 @@ export default function App() {
     setView('dashboard');
   };
 
+  // Dynamically calculate warnings based on database VTV dates and settings thresholds
+  const getAlerts = () => {
+    const activeAlerts = [];
+    vehicles.forEach(v => {
+      if (!v.vtvExpiration) return;
+      const expDate = new Date(v.vtvExpiration);
+      const today = new Date();
+      expDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      
+      const timeDiff = expDate.getTime() - today.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+      if (daysDiff <= settings.alert_red) {
+        activeAlerts.push({
+          id: `vtv-${v.id}`,
+          title: daysDiff < 0 ? 'VTV Vencida' : 'VTV Vencimiento Crítico',
+          desc: `Unidad ${v.id}`,
+          severity: 'error',
+          text: daysDiff < 0 ? `Expiró hace ${Math.abs(daysDiff)} días` : `Vence en ${daysDiff} días`
+        });
+      } else if (daysDiff <= settings.alert_yellow) {
+        activeAlerts.push({
+          id: `vtv-${v.id}`,
+          title: 'VTV Próxima a Vencer',
+          desc: `Unidad ${v.id}`,
+          severity: 'warning',
+          text: `Vence en ${daysDiff} días`
+        });
+      } else if (daysDiff <= settings.alert_green) {
+        activeAlerts.push({
+          id: `vtv-${v.id}`,
+          title: 'VTV en Término',
+          desc: `Unidad ${v.id}`,
+          severity: 'info',
+          text: `Vence en ${daysDiff} días`
+        });
+      }
+    });
+
+    // Fallbacks to keep mock items if database is clean
+    if (activeAlerts.length === 0) {
+      activeAlerts.push(
+        { id: 'vtv', title: 'VTV Vencida', desc: 'VM-042', severity: 'error', text: 'Expiró hace 2 días' },
+        { id: 'motores', title: 'Mantenimiento de Motores', desc: 'VM-018', severity: 'warning', text: 'En 500 km' },
+        { id: 'neumaticos', title: 'Revisión de Neumáticos', desc: 'VM-105', severity: 'info', text: 'Presión baja' }
+      );
+    }
+    return activeAlerts;
+  };
+
+  const alerts = getAlerts();
+
   // Render active component
   const renderContent = () => {
     if (role === 'operador') {
@@ -247,13 +260,13 @@ export default function App() {
         case 'dashboard':
           return <Dashboard setView={setView} alerts={alerts} setSelectedVehicleId={setSelectedVehicleId} />;
         case 'flota':
-          return <FleetList vehicles={vehicles} setView={setView} setSelectedVehicleId={setSelectedVehicleId} />;
+          return <FleetList vehicles={vehicles} setVehicles={setVehicles} drivers={drivers} setView={setView} setSelectedVehicleId={setSelectedVehicleId} />;
         case 'detalle_vehiculo':
           return <VehicleDetail vehicleId={selectedVehicleId} vehicles={vehicles} setView={setView} />;
         case 'choferes':
           return <DriversManagement drivers={drivers} setDrivers={setDrivers} />;
         case 'alertas':
-          return <AlertsMaintenance />;
+          return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:
           return <Dashboard setView={setView} alerts={alerts} setSelectedVehicleId={setSelectedVehicleId} />;
       }
@@ -265,7 +278,7 @@ export default function App() {
         case 'rutas':
           return <DriverRoute />;
         case 'alertas':
-          return <AlertsMaintenance />;
+          return <AlertsMaintenance settings={settings} setSettings={setSettings} vehicles={vehicles} />;
         default:
           return <DriverPanel vehicleId="VM-018" vehicles={vehicles} setView={setView} />;
       }

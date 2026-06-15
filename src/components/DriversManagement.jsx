@@ -38,14 +38,27 @@ export default function DriversManagement({ drivers, setDrivers }) {
   };
 
   // Handle delete
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('¿Estás seguro de que deseas eliminar este chofer?')) {
-      setDrivers(drivers.filter(d => d.id !== id));
+      try {
+        const response = await fetch(`/api/drivers/${id}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (data.success) {
+          setDrivers(drivers.filter(d => d.id !== id));
+        } else {
+          alert(data.error || 'Error al eliminar el chofer.');
+        }
+      } catch (err) {
+        console.error('Error deleting driver:', err);
+        alert('Error de conexión al eliminar el chofer.');
+      }
     }
   };
 
   // Handle submit (save create/edit)
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !username.trim() || !password.trim()) {
       setError('Por favor, completa los campos requeridos (Nombre, Usuario y Contraseña).');
@@ -62,35 +75,48 @@ export default function DriversManagement({ drivers, setDrivers }) {
     }
 
     const defaultAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
+    const payload = {
+      name: name.trim(),
+      username: username.trim(),
+      password: password.trim(),
+      licenseStatus,
+      avatar: avatar.trim() || defaultAvatar
+    };
 
-    if (editingDriver) {
-      // Edit mode
-      setDrivers(drivers.map(d => d.id === editingDriver.id ? {
-        ...d,
-        name: name.trim(),
-        username: username.trim(),
-        password: password.trim(),
-        licenseStatus,
-        avatar: avatar.trim() || defaultAvatar
-      } : d));
-    } else {
-      // Create mode
-      const newId = drivers.length > 0 ? Math.max(...drivers.map(d => d.id)) + 1 : 1;
-      setDrivers([
-        ...drivers,
-        {
-          id: newId,
-          name: name.trim(),
-          username: username.trim(),
-          password: password.trim(),
-          role: 'conductor',
-          licenseStatus,
-          avatar: avatar.trim() || defaultAvatar
+    try {
+      if (editingDriver) {
+        // Edit mode
+        const response = await fetch(`/api/drivers/${editingDriver.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setDrivers(drivers.map(d => d.id === editingDriver.id ? data.driver : d));
+          setShowModal(false);
+        } else {
+          setError(data.error || 'Error al actualizar el chofer.');
         }
-      ]);
+      } else {
+        // Create mode
+        const response = await fetch('/api/drivers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setDrivers([...drivers, data.driver]);
+          setShowModal(false);
+        } else {
+          setError(data.error || 'Error al registrar el chofer.');
+        }
+      }
+    } catch (err) {
+      console.error('Error saving driver:', err);
+      setError('Error de conexión con el servidor.');
     }
-
-    setShowModal(false);
   };
 
   // Filter drivers by search term
