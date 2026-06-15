@@ -289,99 +289,223 @@ export default function App() {
   // If session not started, only display login screen
   if (!currentUser) {
     return (
-      <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md relative max-w-md mx-auto shadow-2xl border-x border-surface-variant/20 select-none">
-        <main className="flex-1 px-margin-mobile flex flex-col justify-center">
+      <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md relative select-none justify-center items-center px-4">
+        <div className="w-full max-w-md">
           <Login onLogin={handleLogin} drivers={drivers} />
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md relative max-w-md mx-auto shadow-2xl border-x border-surface-variant/20 select-none pb-24">
-      {/* Top Header */}
-      <header className="bg-surface docked full-width top-0 sticky z-50 flex justify-between items-center px-margin-mobile w-full h-16 border-b border-surface-variant/10">
-        <div className="flex items-center gap-sm">
-          {/* Avatar / Brand Indicator */}
-          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container overflow-hidden border border-primary/20">
+    <div className="bg-background text-on-background min-h-screen flex flex-col md:flex-row font-body-md select-none">
+      
+      {/* Left Sidebar Navigation for Desktop */}
+      <aside className="hidden md:flex flex-col w-64 bg-surface-container border-r border-surface-variant/30 sticky top-0 h-screen z-50 p-lg shrink-0">
+        {/* Brand */}
+        <div className="flex items-center gap-md mb-xl">
+          <div className="w-10 h-10 rounded-xl bg-primary-container/20 text-primary flex items-center justify-center border border-primary/20 shadow-md">
+            <span className="material-symbols-outlined text-[28px] filled">local_shipping</span>
+          </div>
+          <div>
+            <h1 className="font-headline-sm text-headline-sm text-primary font-bold">VerdeMov</h1>
+            <p className="font-label-md text-[10px] text-on-surface-variant tracking-wider uppercase font-semibold">Flota Eléctrica</p>
+          </div>
+        </div>
+
+        {/* User Info Card inside Sidebar */}
+        <div className="bg-surface-container-high rounded-xl p-md border border-surface-variant/20 flex items-center gap-md mb-xl">
+          <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container overflow-hidden border border-primary/20 shrink-0">
             {currentUser.avatar ? (
-              <img 
-                src={currentUser.avatar} 
-                alt={currentUser.name} 
-                className="w-full h-full object-cover"
-              />
+              <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
             ) : (
               <span className="font-label-md text-label-md font-bold text-primary">
                 {currentUser.name ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'VM'}
               </span>
             )}
           </div>
-          <h1 className="font-headline-md-mobile text-headline-md-mobile font-bold text-primary">VerdeMov</h1>
-          
-          {/* Role badge */}
-          <span className="ml-2 px-2 py-0.5 rounded-full bg-surface-container-high border border-surface-variant text-[9px] uppercase font-bold text-on-surface-variant">
-            {role === 'operador' ? 'Kamala Harris' : currentUser.name}
-          </span>
+          <div className="truncate flex-1">
+            <h4 className="font-label-md text-xs text-on-surface font-bold truncate">{currentUser.name}</h4>
+            <span className="font-label-md text-[9px] uppercase font-bold text-primary tracking-wider">
+              {role === 'operador' ? 'Kamala Harris' : 'Chofer'}
+            </span>
+          </div>
         </div>
 
-        {/* Header Actions */}
-        <div className="flex items-center gap-xs">
-          {/* Notifications Button */}
-          <div className="relative">
-            <button 
-              onClick={() => {
-                setShowNotifications(!showNotifications);
-                setUnreadNotifications(0);
-              }} 
-              className="text-on-surface-variant hover:opacity-80 transition-opacity active:scale-95 flex items-center justify-center p-2 rounded-full focus:outline-none"
-              aria-label="Notifications"
-            >
-              <span className="material-symbols-outlined text-[24px]">notifications</span>
-              {unreadNotifications > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full border-2 border-surface"></span>
-              )}
-            </button>
+        {/* Sidebar Navigation Links */}
+        <nav className="flex-1 flex flex-col gap-xs">
+          {role === 'operador' ? (
+            <>
+              <button 
+                onClick={() => setView('dashboard')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'dashboard' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">dashboard</span>
+                <span className="font-body-md text-sm">Dashboard</span>
+              </button>
+              <button 
+                onClick={() => setView('flota')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'flota' || view === 'detalle_vehiculo' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">local_shipping</span>
+                <span className="font-body-md text-sm">Flota de Unidades</span>
+              </button>
+              <button 
+                onClick={() => setView('choferes')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'choferes' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">badge</span>
+                <span className="font-body-md text-sm">Gestión Choferes</span>
+              </button>
+              <button 
+                onClick={() => setView('alertas')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'alertas' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">warning</span>
+                <span className="font-body-md text-sm">Alertas y VTV</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => setView('dashboard')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'dashboard' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">dashboard</span>
+                <span className="font-body-md text-sm">Mi Panel</span>
+              </button>
+              <button 
+                onClick={() => setView('rutas')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'rutas' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">route</span>
+                <span className="font-body-md text-sm">Mi Hoja de Ruta</span>
+              </button>
+              <button 
+                onClick={() => setView('alertas')}
+                className={`w-full flex items-center gap-md px-md py-3 rounded-xl transition-all text-left focus:outline-none ${
+                  view === 'alertas' ? 'bg-primary text-surface font-bold shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined">warning</span>
+                <span className="font-body-md text-sm">Alertas</span>
+              </button>
+            </>
+          )}
+        </nav>
 
-            {/* Simple Notifications Popover */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-64 bg-surface-container-high rounded-xl p-md border border-surface-variant shadow-2xl z-50 animate-fadeIn">
-                <h4 className="font-label-md text-label-md text-on-surface font-bold border-b border-surface-variant/40 pb-2 mb-2 flex justify-between">
-                  <span>Notificaciones</span>
-                  <span className="text-[10px] text-primary">Novedades</span>
-                </h4>
-                <ul className="flex flex-col gap-sm">
-                  <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-error text-on-surface">
-                    <span className="font-bold">VM-042:</span> Alerta crítica por VTV vencida.
-                  </li>
-                  <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-tertiary text-on-surface">
-                    <span className="font-bold">VM-018:</span> Nivel de batería óptimo para salida.
-                  </li>
-                  <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-primary text-on-surface">
-                    <span className="font-bold">Rutas:</span> Asignación de hoja de ruta CD Norte activa.
-                  </li>
-                </ul>
+        {/* Sidebar Logout Button */}
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-md px-md py-3 rounded-xl text-error hover:bg-error/10 transition-all text-left focus:outline-none mt-auto"
+        >
+          <span className="material-symbols-outlined">logout</span>
+          <span className="font-body-md text-sm font-bold">Cerrar Sesión</span>
+        </button>
+      </aside>
+
+      {/* Main Content Container */}
+      <div className="flex-1 flex flex-col min-w-0 max-w-7xl mx-auto w-full px-margin-mobile md:px-lg">
+        
+        {/* Top Header */}
+        <header className="bg-surface top-0 sticky z-40 flex justify-between items-center w-full h-16 border-b border-surface-variant/10">
+          <div className="flex items-center gap-sm">
+            {/* Mobile Brand Info */}
+            <div className="md:hidden flex items-center gap-sm">
+              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container overflow-hidden border border-primary/20">
+                {currentUser.avatar ? (
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-label-md text-label-md font-bold text-primary">
+                    {currentUser.name ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'VM'}
+                  </span>
+                )}
               </div>
-            )}
+              <h1 className="font-headline-md-mobile text-headline-md-mobile font-bold text-primary">VerdeMov</h1>
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-surface-container-high border border-surface-variant text-[9px] uppercase font-bold text-on-surface-variant">
+                {role === 'operador' ? 'Kamala Harris' : currentUser.name}
+              </span>
+            </div>
+            
+            {/* Desktop View Title */}
+            <div className="hidden md:flex flex-col">
+              <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                {view === 'dashboard' ? 'Resumen de Flota' : view === 'flota' ? 'Control de Flota' : view === 'choferes' ? 'Gestión de Choferes' : view === 'alertas' ? 'Configuración de Alertas' : 'Ficha Técnica'}
+              </h2>
+            </div>
           </div>
 
-          {/* Logout Button */}
-          <button 
-            onClick={handleLogout}
-            className="text-error hover:opacity-80 active:scale-95 flex items-center justify-center p-2 rounded-full focus:outline-none"
-            title="Cerrar sesión"
-          >
-            <span className="material-symbols-outlined text-[24px]">logout</span>
-          </button>
-        </div>
-      </header>
+          {/* Header Actions */}
+          <div className="flex items-center gap-xs">
+            {/* Notifications Button */}
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  setUnreadNotifications(0);
+                }} 
+                className="text-on-surface-variant hover:bg-surface-container-high transition-colors flex items-center justify-center p-2 rounded-full focus:outline-none"
+                aria-label="Notifications"
+              >
+                <span className="material-symbols-outlined text-[24px]">notifications</span>
+                {unreadNotifications > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full border-2 border-surface"></span>
+                )}
+              </button>
 
-      {/* Main Content */}
-      <main className="flex-1 px-margin-mobile py-md flex flex-col">
-        {renderContent()}
-      </main>
+              {/* Simple Notifications Popover */}
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-64 bg-surface-container-high rounded-xl p-md border border-surface-variant shadow-2xl z-50 animate-fadeIn">
+                  <h4 className="font-label-md text-label-md text-on-surface font-bold border-b border-surface-variant/40 pb-2 mb-2 flex justify-between">
+                    <span>Notificaciones</span>
+                    <span className="text-[10px] text-primary">Novedades</span>
+                  </h4>
+                  <ul className="flex flex-col gap-sm">
+                    <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-error text-on-surface">
+                      <span className="font-bold">VM-042:</span> Alerta crítica por VTV vencida.
+                    </li>
+                    <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-tertiary text-on-surface">
+                      <span className="font-bold">VM-018:</span> Nivel de batería óptimo para salida.
+                    </li>
+                    <li className="text-xs bg-surface-container p-sm rounded border-l-2 border-primary text-on-surface">
+                      <span className="font-bold">Rutas:</span> Asignación de hoja de ruta CD Norte activa.
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
 
-      {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 max-w-md w-full z-50 rounded-t-xl bg-surface-container border-t border-surface-variant/40 flex justify-around items-center px-4 py-2 shadow-2xl">
+            {/* Logout Button (Mobile only) */}
+            <button 
+              onClick={handleLogout}
+              className="md:hidden text-error hover:bg-surface-container-high flex items-center justify-center p-2 rounded-full focus:outline-none"
+              title="Cerrar sesión"
+            >
+              <span className="material-symbols-outlined text-[24px]">logout</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 py-md flex flex-col">
+          {renderContent()}
+        </main>
+      </div>
+
+      {/* Bottom Navigation Bar for Mobile */}
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-surface-container border-t border-surface-variant/40 flex justify-around items-center px-4 py-2 shadow-2xl">
         {role === 'operador' ? (
           <>
             {/* Operator Nav */}

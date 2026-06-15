@@ -266,7 +266,7 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [], 
       </section>
 
       {/* Grid List of Drivers */}
-      <section className="flex flex-col gap-md">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md lg:gap-lg">
         {filteredDrivers.length === 0 ? (
           <div className="text-center py-10 bg-surface-container rounded-2xl border border-surface-variant/20">
             <span className="material-symbols-outlined text-[48px] text-on-surface-variant/30 mb-sm">person_off</span>

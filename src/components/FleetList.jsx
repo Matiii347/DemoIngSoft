@@ -233,7 +233,7 @@ export default function FleetList({ vehicles, setVehicles, drivers, setView, set
       </div>
 
       {/* Fleet Grid */}
-      <div className="grid grid-cols-1 gap-md">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md lg:gap-lg">
         {filteredVehicles.length > 0 ? (
           filteredVehicles.map(vehicle => (
             <div 
