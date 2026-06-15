@@ -21,6 +21,24 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [], 
   const [assignTaskDescription, setAssignTaskDescription] = useState('Descarga 5.5t de mercancía general y firma de remito digital');
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [assignError, setAssignError] = useState('');
+  const [routeTemplates, setRouteTemplates] = useState([]);
+  const [assignStops, setAssignStops] = useState([]);
+
+  React.useEffect(() => {
+    if (!viewingAssignRouteDriver) return;
+    const fetchTemplates = async () => {
+      try {
+        const res = await fetch('/api/route-templates');
+        const data = await res.json();
+        if (data.success) {
+          setRouteTemplates(data.templates);
+        }
+      } catch (err) {
+        console.error('Error fetching templates:', err);
+      }
+    };
+    fetchTemplates();
+  }, [viewingAssignRouteDriver]);
 
   const handleOpenExpenses = async (driver) => {
     setViewingExpensesDriver(driver);
@@ -49,6 +67,7 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [], 
     setAssignOrigin('Base Operativa Buenos Aires');
     setAssignDestination('CD Norte');
     setAssignTaskDescription('Descarga 5.5t de mercancía general y firma de remito digital');
+    setAssignStops([]);
     setAssignError('');
   };
 
@@ -82,7 +101,8 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [], 
           estimatedTime: assignEstimatedTime.trim(),
           origin: assignOrigin.trim(),
           destination: assignDestination.trim(),
-          taskDescription: assignTaskDescription.trim()
+          taskDescription: assignTaskDescription.trim(),
+          stops: assignStops
         })
       });
       const data = await res.json();
@@ -584,6 +604,34 @@ export default function DriversManagement({ drivers, setDrivers, vehicles = [], 
                   {assignError}
                 </div>
               )}
+
+              <div className="flex flex-col gap-xs">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Cargar desde Plantilla de Ruta</label>
+                <select 
+                  onChange={(e) => {
+                    const templateId = e.target.value;
+                    if (!templateId) {
+                      setAssignStops([]);
+                      return;
+                    }
+                    const selected = routeTemplates.find(t => String(t.id) === templateId);
+                    if (selected) {
+                      setAssignTotalDistance(String(selected.totalDistance));
+                      setAssignOrigin(selected.origin);
+                      setAssignDestination(selected.destination);
+                      setAssignEstimatedTime(selected.estimatedTime || '');
+                      setAssignTaskDescription(selected.taskDescription || '');
+                      setAssignStops(selected.stops || []);
+                    }
+                  }}
+                  className="w-full bg-surface-container border border-surface-variant/60 rounded-xl py-2 px-3 text-on-surface focus:outline-none focus:border-primary/80 transition-colors font-body-md text-xs"
+                >
+                  <option value="">-- Seleccionar Plantilla (Opcional) --</option>
+                  {routeTemplates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.totalDistance} km)</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="flex flex-col gap-xs">
                 <label className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider font-bold">Camión Asignado *</label>

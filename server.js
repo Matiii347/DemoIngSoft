@@ -783,7 +783,7 @@ app.get('/api/trips', async (req, res) => {
 
 // POST /api/trips
 app.post('/api/trips', async (req, res) => {
-  const { driverId, vehicleId, tripDate, totalDistance, estimatedTime, origin, destination, taskDescription } = req.body;
+  const { driverId, vehicleId, tripDate, totalDistance, estimatedTime, origin, destination, taskDescription, stops } = req.body;
   
   if (!driverId || !vehicleId || !totalDistance || !origin || !destination) {
     return res.status(400).json({ success: false, error: 'Por favor completa todos los campos requeridos.' });
@@ -800,9 +800,10 @@ app.post('/api/trips', async (req, res) => {
     }
 
     // 2. Insert trip
+    const totalStopsCount = 2 + (stops && Array.isArray(stops) ? stops.length : 0);
     const tripQuery = `
       INSERT INTO trips (driver_id, vehicle_id, trip_date, status, total_distance, estimated_time, total_stops)
-      VALUES ($1, $2, $3, 'En Progreso', $4, $5, 2)
+      VALUES ($1, $2, $3, 'En Progreso', $4, $5, $6)
       RETURNING id
     `;
     const tripResult = await client.query(tripQuery, [
@@ -810,41 +811,55 @@ app.post('/api/trips', async (req, res) => {
       vehicleId,
       tripDate || new Date(),
       parseFloat(totalDistance),
-      estimatedTime || 'N/A'
+      estimatedTime || 'N/A',
+      totalStopsCount
     ]);
     const tripId = tripResult.rows[0].id;
 
     // 3. Insert Stop 1 (Origen)
+    const distToNext = stops && stops.length > 0 ? parseFloat(totalDistance) / (stops.length + 1) : parseFloat(totalDistance);
     const stop1Query = `
       INSERT INTO stops (trip_id, stop_order, name, stop_type, status, details, distance_to_next)
       VALUES ($1, 1, $2, 'Origen', 'Completado', 'Salida: 08:00', $3)
-      RETURNING id
     `;
-    await client.query(stop1Query, [tripId, origin, parseFloat(totalDistance)]);
+    await client.query(stop1Query, [tripId, origin, distToNext]);
 
-    // 4. Insert Stop 2 (Destino)
-    const stop2Query = `
+    // 4. Insert intermediate stops if any
+    let currentOrder = 2;
+    if (stops && Array.isArray(stops)) {
+      for (const stopName of stops) {
+        const intermediateStopQuery = `
+          INSERT INTO stops (trip_id, stop_order, name, stop_type, status, details, distance_to_next)
+          VALUES ($1, $2, $3, 'Intermedio', 'Planificado', 'Parada programada', $4)
+        `;
+        await client.query(intermediateStopQuery, [tripId, currentOrder, stopName, distToNext]);
+        currentOrder++;
+      }
+    }
+
+    // 5. Insert final Stop (Destino)
+    const finalStopQuery = `
       INSERT INTO stops (trip_id, stop_order, name, stop_type, status, details, distance_to_next)
-      VALUES ($1, 2, $2, 'Destino', 'Siguiente', 'Entrega programada', 0)
+      VALUES ($1, $2, $3, 'Destino', 'Siguiente', 'Entrega programada', 0)
       RETURNING id
     `;
-    const stop2Result = await client.query(stop2Query, [tripId, destination]);
-    const stop2Id = stop2Result.rows[0].id;
+    const finalStopResult = await client.query(finalStopQuery, [tripId, currentOrder, destination]);
+    const finalStopId = finalStopResult.rows[0].id;
 
-    // 5. Insert Task for Stop 2
+    // 6. Insert Task for final stop
     if (taskDescription && taskDescription.trim()) {
       const taskQuery = `
         INSERT INTO stop_tasks (stop_id, description, done)
         VALUES ($1, $2, FALSE)
       `;
-      await client.query(taskQuery, [stop2Id, taskDescription.trim()]);
+      await client.query(taskQuery, [finalStopId, taskDescription.trim()]);
     } else {
       // Default tasks
       const taskQuery = `
         INSERT INTO stop_tasks (stop_id, description, done)
         VALUES ($1, 'Descarga de mercadería', FALSE), ($1, 'Firma de remito', FALSE)
       `;
-      await client.query(taskQuery, [stop2Id]);
+      await client.query(taskQuery, [finalStopId]);
     }
 
     await client.query('COMMIT');
